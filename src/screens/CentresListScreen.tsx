@@ -37,7 +37,14 @@ const mapCentre = (c: any): Centre => {
     location: c.address || [c.district, c.state].filter(Boolean).join(', ') || '',
     rating: c.rating != null ? String(c.rating) : '—',
     distance: c.distanceKm != null ? `${c.distanceKm} km` : c.distance || '',
-    kind: c.isHealwinCentre ? 'centre' : c.isVerified ? 'enrolled' : 'other',
+    // The locator centre's `type` drives the filter bucket. (Older flags
+    // isHealwinCentre/isVerified are kept as a fallback.)
+    kind:
+      c.type === 'healwin_operated' || c.isHealwinCentre
+        ? 'centre'
+        : c.type === 'healwin_approved' || c.isVerified
+          ? 'enrolled'
+          : 'other',
     lat: coords?.[1] ?? c.lat,
     lng: coords?.[0] ?? c.lng,
   };

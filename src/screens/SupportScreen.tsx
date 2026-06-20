@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +21,7 @@ export const SupportScreen: React.FC = () => {
   const [open, setOpen] = useState<number | null>(0);
   // FAQs come only from the backend (admin-managed) — no hardcoded fallback.
   const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [contact, setContact] = useState<{ helplineNumber: string; email: string }>({ helplineNumber: '', email: '' });
 
   React.useEffect(() => {
     supportApi
@@ -32,24 +33,42 @@ export const SupportScreen: React.FC = () => {
         setFaqs(mapped);
       })
       .catch(() => setFaqs([]));
+    supportApi.contactInfo().then((c) => c && setContact(c)).catch(() => undefined);
   }, []);
+
+  const callHelpline = () => {
+    if (!contact.helplineNumber) {
+      Alert.alert('Helpline unavailable', 'Please try again later.');
+      return;
+    }
+    Linking.openURL(`tel:${contact.helplineNumber}`).catch(() => undefined);
+  };
+  const emailUs = () => {
+    if (!contact.email) {
+      Alert.alert('Email unavailable', 'Please try again later.');
+      return;
+    }
+    Linking.openURL(`mailto:${contact.email}`).catch(() => undefined);
+  };
 
   return (
     <View style={styles.root}>
       <ScreenHeader title="Help & Support" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + verticalScale(24) }]}>
         <View style={styles.actions}>
-          <Pressable style={[styles.action, cardShadow]} onPress={() => {}}>
+          <Pressable style={[styles.action, cardShadow]} onPress={callHelpline}>
             <View style={[styles.actionIcon, { backgroundColor: '#E6F4E6' }]}>
               <PhoneIcon size={scale(20)} color={colors.callGreen} />
             </View>
             <Text style={styles.actionText}>Call Helpline</Text>
+            {!!contact.helplineNumber && <Text style={styles.actionSub}>{contact.helplineNumber}</Text>}
           </Pressable>
-          <Pressable style={[styles.action, cardShadow]} onPress={() => {}}>
+          <Pressable style={[styles.action, cardShadow]} onPress={emailUs}>
             <View style={[styles.actionIcon, { backgroundColor: '#EAF1FE' }]}>
               <MailIcon size={scale(20)} color={colors.directionsBlue} />
             </View>
             <Text style={styles.actionText}>Email us</Text>
+            {!!contact.email && <Text style={styles.actionSub} numberOfLines={1}>{contact.email}</Text>}
           </Pressable>
         </View>
 
@@ -81,6 +100,7 @@ const styles = StyleSheet.create({
   action: { flex: 1, alignItems: 'center', gap: scale(10), backgroundColor: colors.surface, borderRadius: radius.card, paddingVertical: verticalScale(18) },
   actionIcon: { width: scale(44), height: scale(44), borderRadius: scale(22), alignItems: 'center', justifyContent: 'center' },
   actionText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
+  actionSub: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(2), paddingHorizontal: scale(6) },
   section: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textBlack, marginTop: verticalScale(24), marginBottom: verticalScale(12) },
   faq: { backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16), marginBottom: verticalScale(12) },
   faqHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: scale(10) },

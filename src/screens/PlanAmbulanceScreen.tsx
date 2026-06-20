@@ -10,6 +10,7 @@ import { contactsStore, useSavedContacts, useSelectedRecipient } from '../state/
 import { familyStore, useFamilyMembers } from '../state/familyStore';
 import { addressStore, useAddresses, Address } from '../state/addressStore';
 import { bookingDraftStore, useDraftPickup } from '../state/bookingDraftStore';
+import { resolvePlace } from '../services/geo';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -31,6 +32,26 @@ export const PlanAmbulanceScreen: React.FC = () => {
   const recipient = useSelectedRecipient();
   const addresses = useAddresses();
   const pickup = useDraftPickup();
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  // Saved addresses are stored as text only (no coordinates). When one is
+  // chosen for pickup we forward-geocode it so the map + live distance work —
+  // otherwise the pickup has no position and nothing shows on the map.
+  const pickSavedAddress = async (a: Address) => {
+    const text = formatAddress(a);
+    bookingDraftStore.setPickup({ address: text }); // show immediately
+    setResolving(a.id);
+    try {
+      const loc = await resolvePlace({ description: text });
+      if (loc?.lat != null) {
+        bookingDraftStore.setPickup({ address: loc.address || text, lat: loc.lat, lng: loc.lng });
+      }
+    } catch {
+      /* keep the text-only pickup */
+    } finally {
+      setResolving(null);
+    }
+  };
 
   // Keep the saved-contacts + family + saved-addresses lists fresh on focus
   // (e.g. after adding one on the respective add screen).
@@ -126,9 +147,9 @@ export const PlanAmbulanceScreen: React.FC = () => {
             <AddressRow
               key={a.id}
               title={a.isDefault ? 'Home (Default)' : 'Saved address'}
-              address={formatAddress(a)}
+              address={resolving === a.id ? 'Locating…' : formatAddress(a)}
               divider={i < addresses.length - 1}
-              onPress={() => bookingDraftStore.setPickup({ address: formatAddress(a) })}
+              onPress={() => pickSavedAddress(a)}
             />
           ))}
           {addresses.length === 0 && (
@@ -146,10 +167,10 @@ export const PlanAmbulanceScreen: React.FC = () => {
       {/* Bottom button */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + verticalScale(10) }]}>
         <Pressable
-          onPress={() => navigation.navigate('PlanAmbulanceMap')}
+          onPress={() => navigation.navigate('PlanAmbulanceMap', { mode: 'pickup', next: 'select' })}
           style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
         >
-          <Text style={styles.ctaText}>Set location on map</Text>
+          <Text style={styles.ctaText}>Search address or set on map</Text>
         </Pressable>
       </View>
 

@@ -85,6 +85,9 @@ export const sosApi = {
 
 export const supportApi = {
   faqs: () => api.get<any[]>('/support/faqs'),
+  // Helpline number + support email (from backend env) for the Call/Email buttons.
+  contactInfo: () =>
+    api.get<{ helplineNumber: string; email: string }>('/support/contact-info'),
   topics: () => api.get<any[]>('/support/topics'),
   tickets: () => api.get<any>('/support/tickets'),
   createTicket: (data: { subject: string; category?: string; message: string; bookingId?: string }) =>

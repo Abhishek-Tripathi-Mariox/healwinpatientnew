@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader, SlotPicker, type Slot, type SlotSelection } from '../components';
@@ -21,6 +21,7 @@ interface Item {
   status: string;
   cancellable: boolean;
   doctorId?: string; // for fetching this doctor's slots on reschedule
+  raw: any; // full record for the detail screen
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -49,6 +50,7 @@ const mapConsultation = (c: any): Item => ({
   status: c.status,
   cancellable: !['COMPLETED', 'CANCELLED'].includes(c.status),
   doctorId: c.doctorId ? String(c.doctorId) : undefined,
+  raw: c,
 });
 
 const mapLab = (b: any): Item => ({
@@ -58,6 +60,7 @@ const mapLab = (b: any): Item => ({
   amount: b.totalAmount ?? 0,
   status: b.status,
   cancellable: !['REPORT_READY', 'CANCELLED'].includes(b.status),
+  raw: b,
 });
 
 const mapPharmacy = (o: any): Item => ({
@@ -67,12 +70,20 @@ const mapPharmacy = (o: any): Item => ({
   amount: o.totalAmount ?? 0,
   status: o.status,
   cancellable: !['DELIVERED', 'CANCELLED'].includes(o.status),
+  raw: o,
 });
 
 export const MyOrdersScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const [tab, setTab] = React.useState<Tab>('consultations');
+  const route = useRoute<RouteProp<RootStackParamList, 'MyOrders'>>();
+  // Open the section the user was sent to (e.g. from a lab-report notification).
+  const [tab, setTab] = React.useState<Tab>(route.params?.tab || 'consultations');
+
+  // If re-navigated with a different tab (notification tap while already open).
+  React.useEffect(() => {
+    if (route.params?.tab) setTab(route.params.tab);
+  }, [route.params?.tab]);
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [cancelling, setCancelling] = React.useState<string | null>(null);
@@ -173,7 +184,11 @@ export const MyOrdersScreen: React.FC = () => {
       ) : (
         <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + verticalScale(30) }]}>
           {items.map((it) => (
-            <View key={it.id} style={[styles.card, cardShadow]}>
+            <Pressable
+              key={it.id}
+              onPress={() => navigation.navigate('OrderDetail', { kind: tab, order: it.raw })}
+              style={({ pressed }) => [styles.card, cardShadow, pressed && { opacity: 0.9 }]}
+            >
               <View style={styles.cardTop}>
                 <Text style={styles.title} numberOfLines={2}>{it.title}</Text>
                 <View style={[styles.badge, { backgroundColor: `${statusTone(it.status)}1A` }]}>
@@ -196,7 +211,7 @@ export const MyOrdersScreen: React.FC = () => {
                   )}
                 </View>
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}

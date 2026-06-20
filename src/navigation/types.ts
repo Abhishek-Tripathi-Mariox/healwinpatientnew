@@ -37,7 +37,8 @@ export type RootStackParamList = {
   // Bookings
   Bookings: undefined;
   BookingDetail: { id: string };
-  MyOrders: undefined;
+  MyOrders: { tab?: 'consultations' | 'lab' | 'pharmacy' } | undefined;
+  OrderDetail: { kind: 'consultations' | 'lab' | 'pharmacy'; order: any };
 
   // Misc
   Notifications: undefined;

@@ -36,6 +36,7 @@ import { PaymentScreen } from '../screens/PaymentScreen';
 import { LabTestsScreen } from '../screens/LabTestsScreen';
 import { MedicalRecordsScreen } from '../screens/MedicalRecordsScreen';
 import { MyOrdersScreen } from '../screens/MyOrdersScreen';
+import { OrderDetailScreen } from '../screens/OrderDetailScreen';
 import { DoctorListScreen } from '../screens/DoctorListScreen';
 import { DoctorDetailScreen } from '../screens/DoctorDetailScreen';
 import { PharmacyHomeScreen } from '../screens/PharmacyHomeScreen';
@@ -82,6 +83,7 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="Bookings" component={BookingsScreen} />
     <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
     <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
+    <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
 
     <Stack.Screen name="Notifications" component={NotificationsScreen} />
     <Stack.Screen name="Support" component={SupportScreen} />
