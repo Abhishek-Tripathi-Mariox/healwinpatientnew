@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,7 +8,7 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { AmbulanceOptionCard, BackButton } from '../components';
 import { MapPinIcon } from '../components/icons';
 import { svgs } from '../svgAssets';
-import { ambulanceApi, AmbulanceQuote } from '../api/ambulance';
+import { ambulanceApi, AmbulanceQuote, ApplyPromoResult } from '../api/ambulance';
 import { rideStore } from '../state/rideStore';
 import { contactsStore } from '../state/contactsStore';
 import { bookingDraftStore, useDraftPickup, useDraftDrop } from '../state/bookingDraftStore';
@@ -44,6 +44,12 @@ export const SelectAmbulanceScreen: React.FC = () => {
   const [booking, setBooking] = React.useState(false);
   const [quotes, setQuotes] = React.useState<AmbulanceQuote[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // Promo code entry + applied state (validated server-side; the real discount
+  // is computed against the chosen ambulance's fare at booking time).
+  const [promoInput, setPromoInput] = React.useState('');
+  const [appliedPromo, setAppliedPromo] = React.useState<ApplyPromoResult | null>(null);
+  const [promoBusy, setPromoBusy] = React.useState(false);
+  const [promoError, setPromoError] = React.useState('');
   // Live GPS — used as the pickup point when no explicit pickup was chosen.
   const [myLoc, setMyLoc] = React.useState<{ lat: number; lng: number } | null>(null);
   const pickupDraft = useDraftPickup();
@@ -127,6 +133,37 @@ export const SelectAmbulanceScreen: React.FC = () => {
     }, [loadOptions]),
   );
 
+  // A representative fare to validate the code against — the cheapest real
+  // quote. The backend re-validates against the actually-booked type's fare, so
+  // this is only for the up-front "code is valid / you save ₹X" preview.
+  const repAmount = React.useMemo(() => {
+    const amounts = quotes.map((q) => q.amount ?? q.priceFrom ?? 0).filter((n) => n > 0);
+    return amounts.length ? Math.min(...amounts) : 0;
+  }, [quotes]);
+
+  const applyPromo = async () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code || promoBusy) return;
+    setPromoBusy(true);
+    setPromoError('');
+    try {
+      const res = await ambulanceApi.applyPromo(code, repAmount, quotes[0]?.code);
+      setAppliedPromo(res);
+      setPromoInput(code);
+    } catch (e: any) {
+      setAppliedPromo(null);
+      setPromoError(e?.message || 'Invalid or expired code');
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoInput('');
+    setPromoError('');
+  };
+
   const book = async (typeCode: string) => {
     if (booking) return;
     setBooking(true);
@@ -155,6 +192,9 @@ export const SelectAmbulanceScreen: React.FC = () => {
         ...(dropDr?.lat != null && dropDr?.lng != null
           ? { drop: { lat: dropDr.lat, lng: dropDr.lng, address: dropDr.address } }
           : {}),
+        // Carry the applied coupon — backend re-validates and applies the
+        // discount against this type's real fare.
+        ...(appliedPromo?.valid ? { promoCode: appliedPromo.code } : {}),
         ...(recipient
           ? {
               // The recipient may be a saved contact or a family member —
@@ -262,6 +302,46 @@ export const SelectAmbulanceScreen: React.FC = () => {
           </Pressable>
         </View>
 
+        {/* Promo code */}
+        {appliedPromo?.valid ? (
+          <View style={styles.promoApplied}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.promoAppliedCode}>🎟  {appliedPromo.code} applied</Text>
+              <Text style={styles.promoAppliedSub}>
+                You save ₹{Math.round(appliedPromo.discountAmount).toLocaleString('en-IN')}
+                {appliedPromo.description ? ` · ${appliedPromo.description}` : ''}
+              </Text>
+            </View>
+            <Pressable onPress={removePromo} hitSlop={8}>
+              <Text style={styles.promoRemove}>Remove</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.promoRow}>
+            <TextInput
+              value={promoInput}
+              onChangeText={(t) => setPromoInput(t.toUpperCase())}
+              placeholder="Have a promo code?"
+              placeholderTextColor={colors.inkMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.promoInput}
+            />
+            <Pressable
+              style={[styles.promoApply, (!promoInput.trim() || promoBusy) && styles.promoApplyDisabled]}
+              onPress={applyPromo}
+              disabled={!promoInput.trim() || promoBusy}
+            >
+              {promoBusy ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.promoApplyText}>Apply</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+        {!!promoError && <Text style={styles.promoErrorText}>{promoError}</Text>}
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + verticalScale(20) }}
@@ -363,6 +443,75 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.dashBorder,
     marginLeft: scale(26),
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    marginBottom: verticalScale(12),
+  },
+  promoInput: {
+    flex: 1,
+    height: verticalScale(42),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: colors.dashBorder,
+    backgroundColor: colors.dashBg,
+    paddingHorizontal: scale(14),
+    fontFamily: fonts.semiBold,
+    fontSize: scale(13),
+    color: colors.textBlack,
+  },
+  promoApply: {
+    height: verticalScale(42),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandRedDark,
+  },
+  promoApplyDisabled: {
+    opacity: 0.5,
+  },
+  promoApplyText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(13),
+    color: '#fff',
+  },
+  promoApplied: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: '#0B7A3B',
+    backgroundColor: '#E8F6EE',
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(10),
+    marginBottom: verticalScale(12),
+  },
+  promoAppliedCode: {
+    fontFamily: fonts.bold,
+    fontSize: scale(13),
+    color: '#0B7A3B',
+  },
+  promoAppliedSub: {
+    fontFamily: fonts.medium,
+    fontSize: scale(11),
+    color: '#0B7A3B',
+    marginTop: verticalScale(2),
+  },
+  promoRemove: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(12),
+    color: colors.brandRedDark,
+  },
+  promoErrorText: {
+    fontFamily: fonts.medium,
+    fontSize: scale(12),
+    color: colors.brandRedDark,
+    marginTop: -verticalScale(4),
+    marginBottom: verticalScale(10),
   },
   card: {
     marginBottom: verticalScale(20),

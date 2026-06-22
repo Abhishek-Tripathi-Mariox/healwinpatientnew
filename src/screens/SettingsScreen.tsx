@@ -65,6 +65,7 @@ export const SettingsScreen: React.FC = () => {
       rows: [
         { key: 'edit', label: 'Edit Profile', Icon: EditIcon, onPress: () => navigation.navigate('EditProfile') },
         { key: 'notifications', label: 'Notifications', Icon: BellIcon, onPress: () => navigation.navigate('Notifications') },
+        { key: 'notif-prefs', label: 'Notification preferences', Icon: BellIcon, onPress: () => navigation.navigate('NotificationSettings') },
       ],
     },
     {

@@ -12,6 +12,10 @@ export interface ServerBooking {
   finalAmount?: number;
   amount?: number;
   totalAmount?: number;
+  // Promo applied at booking: gross (pre-discount) fare + savings.
+  grossAmount?: number | null;
+  discountAmount?: number;
+  promoCode?: string | null;
   vehicleType?: { name?: string } | string;
   ambulanceType?: string;
   driver?: { name?: string; fullName?: string; phone?: string };
@@ -63,6 +67,10 @@ export interface UiBooking {
   type: string;
   date: string;
   amount: number;
+  // Promo applied at booking, so the breakup can show "Fare − Promo = Amount".
+  grossAmount?: number;
+  discountAmount: number;
+  promoCode?: string;
   status: UiStatus;
   rawStatus: string;
   driverName: string;
@@ -78,6 +86,7 @@ export interface UiBooking {
   cancellationCharge: number;
   // Lifecycle timeline.
   timeline: TimelineStep[];
+  rating?: number | null;
 }
 
 const fmtDateTime = (iso?: string | null): string =>
@@ -96,6 +105,9 @@ export const toUiBooking = (b: ServerBooking): UiBooking => ({
   type: vehicleName(b),
   date: fmtDateTime(b.createdAt),
   amount: b.finalAmount ?? b.totalAmount ?? b.amount ?? 0,
+  grossAmount: b.grossAmount ?? undefined,
+  discountAmount: b.discountAmount ?? 0,
+  promoCode: b.promoCode ?? undefined,
   status: toUiStatus(b.status),
   rawStatus: (b.status || '').toLowerCase(),
   driverName: b.driver?.name || b.driver?.fullName || '—',
@@ -115,6 +127,7 @@ export const toUiBooking = (b: ServerBooking): UiBooking => ({
         note: h.note ?? null,
       }))
     : [],
+  rating: (b as any).rating ?? null,
 });
 
 /** Human label + date for a timeline step. */
@@ -154,5 +167,5 @@ export const bookingsApi = {
   cancel: (id: string, reason?: string) =>
     api.post(`/patient/ambulance/${id}/cancel`, { reason }),
   rate: (id: string, rating: number, review?: string) =>
-    api.post(`/bookings/${id}/rate`, { rating, review }),
+    api.post(`/patient/ambulance/${id}/rate`, { rating, review }),
 };

@@ -7,6 +7,8 @@ import { AmbulanceTypesScreen } from '../screens/AmbulanceTypesScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { NearbyAmbulancesScreen } from '../screens/NearbyAmbulancesScreen';
 import { MyCreditsScreen } from '../screens/MyCreditsScreen';
+import { MyCoinsScreen } from '../screens/MyCoinsScreen';
+import { EmergencyContactsScreen } from '../screens/EmergencyContactsScreen';
 import { ServiceSelectScreen } from '../screens/ServiceSelectScreen';
 import { CentresListScreen } from '../screens/CentresListScreen';
 import { PlanAmbulanceScreen } from '../screens/PlanAmbulanceScreen';
@@ -31,7 +33,10 @@ import { BookingsScreen } from '../screens/BookingsScreen';
 import { BookingDetailScreen } from '../screens/BookingDetailScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { SupportScreen } from '../screens/SupportScreen';
+import { TicketsScreen } from '../screens/TicketsScreen';
+import { TicketDetailScreen } from '../screens/TicketDetailScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { NotificationSettingsScreen } from '../screens/NotificationSettingsScreen';
 import { PaymentScreen } from '../screens/PaymentScreen';
 import { LabTestsScreen } from '../screens/LabTestsScreen';
 import { MedicalRecordsScreen } from '../screens/MedicalRecordsScreen';
@@ -57,6 +62,8 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="NearbyAmbulances" component={NearbyAmbulancesScreen} />
     <Stack.Screen name="MyCredits" component={MyCreditsScreen} />
+    <Stack.Screen name="MyCoins" component={MyCoinsScreen} />
+    <Stack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} />
     <Stack.Screen name="ServiceSelect" component={ServiceSelectScreen} />
     <Stack.Screen name="CentresList" component={CentresListScreen} />
     <Stack.Screen name="PlanAmbulance" component={PlanAmbulanceScreen} />
@@ -87,7 +94,10 @@ export const RootNavigator: React.FC = () => (
 
     <Stack.Screen name="Notifications" component={NotificationsScreen} />
     <Stack.Screen name="Support" component={SupportScreen} />
+    <Stack.Screen name="Tickets" component={TicketsScreen} />
+    <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
     <Stack.Screen name="Payment" component={PaymentScreen} />
     <Stack.Screen name="LabTests" component={LabTestsScreen} />
     <Stack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />

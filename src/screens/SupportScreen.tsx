@@ -72,6 +72,19 @@ export const SupportScreen: React.FC = () => {
           </Pressable>
         </View>
 
+        <Pressable style={[styles.ticketRow, cardShadow]} onPress={() => navigation.navigate('Tickets')}>
+          <View style={[styles.actionIcon, { backgroundColor: '#FFF4E5' }]}>
+            <MailIcon size={scale(18)} color="#B26A00" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.ticketTitle}>My Support Tickets</Text>
+            <Text style={styles.ticketSub}>Raise an issue or track your tickets</Text>
+          </View>
+          <View style={{ transform: [{ rotate: '-90deg' }] }}>
+            <ChevronDownIcon size={scale(18)} color={colors.textPrimary} />
+          </View>
+        </Pressable>
+
         <Text style={styles.section}>FAQs</Text>
         {faqs.length === 0 && (
           <Text style={styles.a}>No FAQs available right now. Use Call Helpline or Chat above for help.</Text>
@@ -101,6 +114,9 @@ const styles = StyleSheet.create({
   actionIcon: { width: scale(44), height: scale(44), borderRadius: scale(22), alignItems: 'center', justifyContent: 'center' },
   actionText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
   actionSub: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(2), paddingHorizontal: scale(6) },
+  ticketRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(14), marginTop: verticalScale(14) },
+  ticketTitle: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
+  ticketSub: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(2) },
   section: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textBlack, marginTop: verticalScale(24), marginBottom: verticalScale(12) },
   faq: { backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16), marginBottom: verticalScale(12) },
   faqHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: scale(10) },

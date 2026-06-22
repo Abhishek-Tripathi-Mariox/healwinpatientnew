@@ -28,4 +28,8 @@ export const notificationsApi = {
   unreadCount: () => api.get<{ unreadCount: number }>('/notifications/unread-count'),
   markRead: (id: string) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put('/notifications/read-all'),
+  // Preferences: master enable + per-category (booking/payment/promo).
+  settings: () => api.get<{ enabled: boolean; settings: Record<string, boolean> }>('/notifications/settings'),
+  setSetting: (enabled: boolean, type?: string) =>
+    api.put('/notifications/settings', type ? { enabled, type } : { enabled }),
 };

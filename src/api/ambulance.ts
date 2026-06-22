@@ -59,6 +59,17 @@ export interface BookAmbulanceInput {
   notes?: string;
   scheduledAt?: string;
   emergency?: boolean;
+  // Optional discount coupon, validated + applied server-side at booking time.
+  promoCode?: string;
+}
+
+/** Result of previewing a promo code against a quoted fare. */
+export interface ApplyPromoResult {
+  valid: boolean;
+  code: string;
+  discountAmount: number;
+  finalAmount: number;
+  description?: string;
 }
 
 export interface ServerAmbulanceBooking {
@@ -72,6 +83,10 @@ export interface ServerAmbulanceBooking {
   pickup?: LatLng;
   drop?: LatLng;
   amount?: number;
+  // Promo applied at booking: gross (pre-discount) fare + savings.
+  grossAmount?: number | null;
+  discountAmount?: number;
+  promoCode?: string | null;
   // Real fare breakup computed at booking time.
   fareBreakdown?: FareBreakdown | null;
   tripDistanceKm?: number | null;
@@ -104,6 +119,9 @@ export const ambulanceApi = {
       input.emergency ? '/patient/ambulance/emergency' : '/patient/ambulance/book',
       input,
     ),
+  /** Preview a promo code against a quoted fare before booking. */
+  applyPromo: (code: string, amount: number, type?: string) =>
+    api.post<ApplyPromoResult>('/patient/ambulance/apply-promo', { code, amount, type }),
   async active(): Promise<ServerAmbulanceBooking | null> {
     try {
       const b = await api.get<ServerAmbulanceBooking | null>('/patient/ambulance/active');

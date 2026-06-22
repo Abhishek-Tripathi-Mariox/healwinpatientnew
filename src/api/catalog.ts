@@ -34,6 +34,8 @@ export const pharmacyApi = {
     api.post('/patient/pharmacy/orders', data),
   orders: () => api.get<any[]>('/patient/pharmacy/orders').then(arr),
   cancelOrder: (id: string) => api.post(`/patient/pharmacy/orders/${id}/cancel`, {}),
+  // Upload a prescription file → returns { url } to pass as prescriptionUrl.
+  uploadPrescription: (form: FormData) => api.upload<{ url: string }>('/patient/pharmacy/prescription', form, 'POST'),
 };
 
 export const labApi = {

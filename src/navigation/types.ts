@@ -9,6 +9,8 @@ export type RootStackParamList = {
   Profile: undefined;
   NearbyAmbulances: undefined;
   MyCredits: undefined;
+  MyCoins: undefined;
+  EmergencyContacts: undefined;
   ServiceSelect: undefined;
   CentresList: undefined;
   PlanAmbulance: undefined;
@@ -43,7 +45,10 @@ export type RootStackParamList = {
   // Misc
   Notifications: undefined;
   Support: undefined;
+  Tickets: undefined;
+  TicketDetail: { id: string };
   Settings: undefined;
+  NotificationSettings: undefined;
   Payment: { amount: number; title?: string; purpose?: 'wallet' | 'generic' };
   LabTests: undefined;
   MedicalRecords: undefined;

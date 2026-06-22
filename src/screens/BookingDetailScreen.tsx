@@ -20,6 +20,20 @@ export const BookingDetailScreen: React.FC = () => {
   const [booking, setBooking] = useState<UiBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [ratingBusy, setRatingBusy] = useState(false);
+
+  const submitRating = async (stars: number) => {
+    if (!booking || ratingBusy) return;
+    setRatingBusy(true);
+    try {
+      const updated = await bookingsApi.rate(booking.id, stars);
+      setBooking(toUiBooking(updated as any));
+    } catch (e: any) {
+      Alert.alert('Could not submit rating', e?.message || 'Please try again.');
+    } finally {
+      setRatingBusy(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -127,6 +141,18 @@ export const BookingDetailScreen: React.FC = () => {
             </View>
           ))}
           <View style={styles.divider} />
+          {!cancelled && booking.discountAmount > 0 && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.k}>Fare</Text>
+                <Text style={styles.v}>₹{booking.grossAmount ?? booking.amount + booking.discountAmount}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.k}>Promo{booking.promoCode ? ` (${booking.promoCode})` : ''}</Text>
+                <Text style={[styles.v, styles.discountV]}>−₹{booking.discountAmount}</Text>
+              </View>
+            </>
+          )}
           <View style={styles.row}>
             <Text style={styles.totalK}>{cancelled ? 'Trip fare' : 'Amount'}</Text>
             <Text style={[styles.totalV, cancelled && styles.struck]}>₹{booking.amount}</Text>
@@ -183,6 +209,21 @@ export const BookingDetailScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Rate the completed trip */}
+        {booking.rawStatus === 'completed' && (
+          <View style={[styles.card, styles.cardGap, cardShadow]}>
+            <Text style={styles.sectionTitle}>{booking.rating ? 'Your rating' : 'Rate this trip'}</Text>
+            <View style={styles.stars}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Pressable key={s} disabled={!!booking.rating || ratingBusy} onPress={() => submitRating(s)} hitSlop={4}>
+                  <Text style={[styles.star, s <= (booking.rating || 0) && styles.starOn]}>★</Text>
+                </Pressable>
+              ))}
+            </View>
+            {!booking.rating && <Text style={styles.rateHint}>Tap a star to rate the crew and service.</Text>}
+          </View>
+        )}
+
         {payable > 0 && (
           <Pressable
             onPress={() =>
@@ -228,6 +269,7 @@ const styles = StyleSheet.create({
   totalK: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textBlack },
   totalV: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textBlack },
   struck: { textDecorationLine: 'line-through', color: colors.inkMuted, fontFamily: fonts.medium },
+  discountV: { color: '#0B7A3B', fontFamily: fonts.semiBold },
   charge: { color: colors.brandRedDark },
   // Timeline
   sectionTitle: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textBlack, marginBottom: verticalScale(12) },
@@ -242,6 +284,10 @@ const styles = StyleSheet.create({
   tlTime: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(2) },
   tlNote: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.textBlack, marginTop: verticalScale(3) },
   // Cancellation card
+  stars: { flexDirection: 'row', gap: scale(8) },
+  star: { fontSize: scale(30), color: '#D7DCE2' },
+  starOn: { color: '#F5A623' },
+  rateHint: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(8) },
   cancelCard: { backgroundColor: '#FCECEC', borderRadius: radius.card, padding: scale(16), marginTop: verticalScale(14) },
   cancelTitle: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.brandRedDark },
   cancelReason: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack, marginTop: verticalScale(6) },

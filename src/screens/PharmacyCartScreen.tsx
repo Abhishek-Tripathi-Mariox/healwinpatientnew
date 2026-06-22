@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 import { ScreenHeader } from '../components';
-import { MapPinIcon, MinusIcon, PlusIcon, UploadCloudIcon } from '../components/icons';
+import { CheckCircleIcon, MapPinIcon, MinusIcon, PlusIcon, UploadCloudIcon } from '../components/icons';
 import { cartStore, useCart } from '../state/cartStore';
 import { useAddresses } from '../state/addressStore';
 import { pharmacyApi } from '../api/catalog';
@@ -23,6 +24,25 @@ export const PharmacyCartScreen: React.FC = () => {
   const def = addresses.find((a) => a.isDefault) ?? addresses[0];
   const total = cartStore.total();
   const [placing, setPlacing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [prescriptionUrl, setPrescriptionUrl] = useState<string | null>(null);
+
+  const pickPrescription = async () => {
+    const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }).catch(() => null);
+    const picked = res?.assets?.[0];
+    if (!picked?.uri) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', { uri: picked.uri, type: picked.type || 'image/jpeg', name: picked.fileName || `rx_${Date.now()}.jpg` } as any);
+      const out = await pharmacyApi.uploadPrescription(form);
+      setPrescriptionUrl(out?.url || null);
+    } catch (e: any) {
+      Alert.alert('Upload failed', e?.message || 'Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const placeOrder = async () => {
     if (placing || items.length === 0) return;
@@ -31,6 +51,7 @@ export const PharmacyCartScreen: React.FC = () => {
       await pharmacyApi.createOrder({
         items: items.map((i) => ({ productId: i.product.id, qty: i.quantity })),
         addressId: def?.id,
+        ...(prescriptionUrl ? { prescriptionUrl } : {}),
       });
       cartStore.clear?.();
       Alert.alert('Order placed', 'Your pharmacy order has been placed successfully.', [
@@ -85,9 +106,20 @@ export const PharmacyCartScreen: React.FC = () => {
         </Pressable>
 
         <Text style={styles.section}>Prescription (required for Rx)</Text>
-        <Pressable style={styles.upload} onPress={() => {}}>
-          <UploadCloudIcon size={scale(28)} color={colors.textPrimary} />
-          <Text style={styles.uploadText}>Upload prescription</Text>
+        <Pressable style={[styles.upload, !!prescriptionUrl && styles.uploadDone]} onPress={pickPrescription} disabled={uploading}>
+          {uploading ? (
+            <ActivityIndicator color={colors.directionsBlue} />
+          ) : prescriptionUrl ? (
+            <>
+              <CheckCircleIcon size={scale(26)} color={colors.creditGreen} />
+              <Text style={styles.uploadText}>Prescription uploaded · tap to change</Text>
+            </>
+          ) : (
+            <>
+              <UploadCloudIcon size={scale(28)} color={colors.textPrimary} />
+              <Text style={styles.uploadText}>Upload prescription</Text>
+            </>
+          )}
         </Pressable>
       </ScrollView>
 
@@ -118,6 +150,7 @@ const styles = StyleSheet.create({
   addr: { flexDirection: 'row', alignItems: 'center', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16) },
   addrText: { flex: 1, fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
   upload: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(12), height: verticalScale(55), borderRadius: scale(12), borderWidth: 1, borderColor: colors.dashBorder, borderStyle: 'dashed', backgroundColor: colors.dashBg },
+  uploadDone: { borderColor: colors.creditGreen, borderStyle: 'solid', backgroundColor: '#F0F8F0' },
   uploadText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textBlack },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: '#ECECEC', paddingHorizontal: spacing.lg, paddingTop: verticalScale(12) },
   barTotal: { fontFamily: fonts.bold, fontSize: scale(18), color: colors.textBlack },
