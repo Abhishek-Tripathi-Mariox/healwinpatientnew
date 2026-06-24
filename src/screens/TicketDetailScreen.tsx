@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { supportApi } from '../api/misc';
+import { socketService } from '../services/socket';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -24,6 +25,7 @@ export const TicketDetailScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [text, setText] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [reopening, setReopening] = React.useState(false);
 
   const load = React.useCallback(() => {
     supportApi
@@ -38,6 +40,18 @@ export const TicketDetailScreen: React.FC = () => {
 
   React.useEffect(() => load(), [load]);
 
+  // Live updates: the backend pushes `support:message` to this user whenever the
+  // support team replies / changes status — reload the thread instantly.
+  React.useEffect(() => {
+    void socketService.connect();
+    const off = socketService.on('support:message', (d: any) => {
+      // The event carries the ticket's _id (ticketObjId) which matches params.id;
+      // fall back to reloading on any support event while this screen is open.
+      if (!d?.ticketObjId || d.ticketObjId === params.id) load();
+    });
+    return off;
+  }, [params.id, load]);
+
   const closed = ['RESOLVED', 'CLOSED'].includes(String(ticket?.status || '').toUpperCase());
 
   const send = async () => {
@@ -46,6 +60,7 @@ export const TicketDetailScreen: React.FC = () => {
     try {
       await supportApi.addMessage(params.id, text.trim());
       setText('');
+      setReopening(false);
       load();
     } catch (e: any) {
       Alert.alert('Could not send', e?.message || 'Please try again.');
@@ -93,9 +108,21 @@ export const TicketDetailScreen: React.FC = () => {
           </View>
         )}
         {messages.map((m, i) => {
-          const mine = (m.senderType || m.sender) !== 'admin' && (m.senderType || m.sender) !== 'support';
+          // senderType from the backend is UPPERCASE (USER / ADMIN / SYSTEM /
+          // DRIVER). SYSTEM = status/automated note → centred; the patient's own
+          // messages (USER/DRIVER) → right; support (ADMIN) → left.
+          const type = String(m.senderType || m.sender || '').toUpperCase();
+          if (type === 'SYSTEM') {
+            return (
+              <View key={m._id || i} style={styles.systemWrap}>
+                <Text style={styles.systemText}>{m.message || m.content}</Text>
+              </View>
+            );
+          }
+          const mine = type === 'USER' || type === 'DRIVER';
           return (
             <View key={m._id || i} style={[styles.bubbleWrap, mine ? styles.mineWrap : styles.themWrap]}>
+              {!mine && <Text style={styles.senderLabel}>Support</Text>}
               <View style={[styles.bubble, mine ? styles.mine : styles.them]}>
                 <Text style={[styles.bubbleText, mine && { color: colors.textWhite }]}>{m.message || m.content}</Text>
               </View>
@@ -106,19 +133,33 @@ export const TicketDetailScreen: React.FC = () => {
         {messages.length === 0 && <Text style={styles.empty}>No replies yet. Our team will respond soon.</Text>}
       </ScrollView>
 
-      {closed ? (
+      {closed && !reopening ? (
         <View style={[styles.closedBar, { paddingBottom: insets.bottom + verticalScale(10) }]}>
-          <Text style={styles.closedText}>This ticket is closed.</Text>
+          <Text style={styles.closedText}>
+            This ticket is {String(ticket?.status || 'closed').toLowerCase()}.
+          </Text>
+          <Pressable onPress={() => setReopening(true)} style={styles.reopenBtn}>
+            <Text style={styles.reopenText}>Reopen ticket</Text>
+          </Pressable>
         </View>
       ) : (
         <View style={[styles.composer, { paddingBottom: insets.bottom + verticalScale(8) }]}>
-          <TextInput value={text} onChangeText={setText} placeholder="Type a reply…" placeholderTextColor={colors.placeholder} style={styles.composerInput} multiline />
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder={closed ? 'Type why you’re reopening…' : 'Type a reply…'}
+            placeholderTextColor={colors.placeholder}
+            style={styles.composerInput}
+            multiline
+          />
           <Pressable onPress={send} disabled={busy || !text.trim()} style={[styles.sendBtn, (busy || !text.trim()) && styles.disabled]}>
-            <Text style={styles.sendText}>Send</Text>
+            <Text style={styles.sendText}>{closed ? 'Reopen' : 'Send'}</Text>
           </Pressable>
-          <Pressable onPress={close} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>Close</Text>
-          </Pressable>
+          {!closed && (
+            <Pressable onPress={close} style={styles.closeBtn}>
+              <Text style={styles.closeBtnText}>Close</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </KeyboardAvoidingView>
@@ -131,6 +172,9 @@ const styles = StyleSheet.create({
   metaBar: { alignSelf: 'center', backgroundColor: '#EEF1F5', borderRadius: scale(8), paddingHorizontal: scale(12), paddingVertical: verticalScale(5), marginBottom: verticalScale(10) },
   metaText: { fontFamily: fonts.medium, fontSize: scale(11.5), color: colors.inkMuted, textTransform: 'capitalize' },
   empty: { textAlign: 'center', marginTop: verticalScale(30), fontFamily: fonts.regular, fontSize: scale(13), color: colors.inkMuted },
+  systemWrap: { alignSelf: 'center', backgroundColor: '#F1F3F6', borderRadius: scale(8), paddingHorizontal: scale(12), paddingVertical: verticalScale(6), marginVertical: verticalScale(6), maxWidth: '90%' },
+  systemText: { fontFamily: fonts.medium, fontSize: scale(11.5), color: colors.inkMuted, textAlign: 'center' },
+  senderLabel: { fontFamily: fonts.semiBold, fontSize: scale(10.5), color: colors.inkMuted, marginBottom: verticalScale(2), marginLeft: scale(4) },
   bubbleWrap: { maxWidth: '82%', marginVertical: verticalScale(5) },
   mineWrap: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   themWrap: { alignSelf: 'flex-start', alignItems: 'flex-start' },
@@ -146,6 +190,8 @@ const styles = StyleSheet.create({
   sendText: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.textWhite },
   closeBtn: { paddingHorizontal: scale(12), height: verticalScale(42), alignItems: 'center', justifyContent: 'center' },
   closeBtnText: { fontFamily: fonts.semiBold, fontSize: scale(12), color: colors.brandRedDark },
-  closedBar: { paddingHorizontal: spacing.lg, paddingTop: verticalScale(12), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2E2E2' },
-  closedText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: scale(13), color: colors.inkMuted },
+  closedBar: { paddingHorizontal: spacing.lg, paddingTop: verticalScale(12), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E2E2E2', alignItems: 'center', gap: verticalScale(10) },
+  closedText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: scale(13), color: colors.inkMuted, textTransform: 'capitalize' },
+  reopenBtn: { paddingHorizontal: scale(20), height: verticalScale(42), borderRadius: scale(21), borderWidth: 1, borderColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },
+  reopenText: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.directionsBlue },
 });

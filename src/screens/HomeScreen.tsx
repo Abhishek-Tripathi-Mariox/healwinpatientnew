@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,17 +13,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { BottomNav, Button, Card, Dots, DriverOnWayCard, Header, TabKey } from '../components';
+import { AmbulanceTypeCard, BottomNav, Button, Card, Dots, DriverOnWayCard, Header, TabKey } from '../components';
 import { svgs } from '../svgAssets';
 import { rideStore, useActiveRide } from '../state/rideStore';
 import { socketService } from '../services/socket';
+import { ambulanceApi, AmbulanceType } from '../api/ambulance';
+import { artFor, FALLBACK_DESCRIPTION } from '../utils/ambulanceArt';
 import { homeApi } from '../api/misc';
 import { notificationsApi } from '../api/notifications';
 import { useProfile } from '../state/profileStore';
 import type { RootStackParamList } from '../navigation/types';
+import LocateHealthcareCard from '../../assets/svg/homepagerename.svg';
 import {
   colors,
-  radius,
+  fonts,
   scale,
   screen,
   spacing,
@@ -40,6 +45,9 @@ interface Promo {
 }
 
 const PROMO_W = screen.width - spacing.md * 2;
+// Full-width cards (same as the promo/Locate cards) so a single type doesn't
+// leave empty space on the right; multiple types page horizontally.
+const VEH_CARD_W = PROMO_W;
 
 export const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -47,6 +55,7 @@ export const HomeScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [promoIndex, setPromoIndex] = useState(0);
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<AmbulanceType[]>([]);
   const [unread, setUnread] = useState(0);
   const ride = useActiveRide();
   const profile = useProfile();
@@ -88,9 +97,25 @@ export const HomeScreen: React.FC = () => {
     };
   }, []);
 
+  // "Know Your Life Support Vehicle" — admin-managed ambulance types (single
+  // source of truth: Types & Pricing). Educational carousel on the home screen.
+  useEffect(() => {
+    let alive = true;
+    ambulanceApi
+      .types()
+      .then((list) => alive && setVehicleTypes(list))
+      .catch(() => alive && setVehicleTypes([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Reflect the live active booking on the home "driver on the way" card.
+  // Also reset the bottom-nav highlight back to Home — otherwise tapping
+  // "Family care" (which navigates away) leaves it highlighted after returning.
   useFocusEffect(
     useCallback(() => {
+      setActiveTab('home');
       rideStore.loadActive().catch(() => undefined);
     }, []),
   );
@@ -214,20 +239,50 @@ export const HomeScreen: React.FC = () => {
           <Dots count={promos.length} activeIndex={Math.min(promoIndex, promos.length - 1)} />
         )}
 
+        {/* ── Ambulance types carousel (vehicle right, text + Book Now left) ── */}
+        {vehicleTypes.length > 0 && (
+          <View style={styles.vehSection}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={VEH_CARD_W + spacing.md}
+              snapToAlignment="start"
+              contentContainerStyle={styles.vehScroll}
+            >
+              {vehicleTypes.map((t) => {
+                const art = artFor(t.name);
+                return (
+                  <AmbulanceTypeCard
+                    key={t._id || t.code}
+                    title={t.name}
+                    description={t.description || FALLBACK_DESCRIPTION}
+                    Background={art.Background}
+                    Vehicle={art.Vehicle}
+                    imageSide="right"
+                    titleSize={t.name.length > 18 ? scale(15) : scale(16)}
+                    onPress={goToPlan}
+                    onBook={goToPlan}
+                    style={styles.vehCard}
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* ── Promo card 2: Locate Healthcare Centre ───────── */}
         <Card
           style={styles.locateCard}
-          Background={svgs.forestBg}
-          backgroundOpacity={0.7}
           onPress={() => navigation.navigate('ServiceSelect')}
         >
-          <Text style={styles.locateHeading}>
-            <Text style={styles.locateRegular}>Locate{'\n'}</Text>
-            <Text style={styles.locateAccent}>Healthcare Centre</Text>
-          </Text>
-          <View style={styles.hospital} pointerEvents="none">
-            <svgs.hospital width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />
-          </View>
+          <LocateHealthcareCard
+            width="100%"
+            height="100%"
+            viewBox="1.503 10.776 374.497 306.224"
+            preserveAspectRatio="xMidYMid slice"
+          />
         </Card>
 
         {/* ── Driver on the way (after booking) ─────────────── */}
@@ -295,6 +350,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: verticalScale(20),
   },
+  vehSection: {
+    marginTop: verticalScale(18),
+  },
+  vehScroll: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: verticalScale(4),
+  },
+  vehCard: {
+    width: VEH_CARD_W,
+    marginHorizontal: 0,
+    marginBottom: 0,
+    marginRight: spacing.md,
+  },
   promoCard: {
     height: verticalScale(161),
     justifyContent: 'center',
@@ -329,7 +397,9 @@ const styles = StyleSheet.create({
 
   /* Promo card 2 */
   locateCard: {
-    height: verticalScale(306),
+    // Match the SVG's content bounds (374.497 × 306.224, top blank cropped via
+    // viewBox) so the card fills with no empty strip at the top.
+    height: Math.round(PROMO_W * (306.224 / 374.497)),
     marginHorizontal: spacing.md,
     marginTop: verticalScale(14),
   },
@@ -351,12 +421,7 @@ const styles = StyleSheet.create({
     color: colors.brandRedDark,
   },
   hospital: {
-    position: 'absolute',
-    left: scale(8),
-    bottom: 0,
-    right: scale(8),
-    width: undefined,
-    height: verticalScale(240),
+    ...StyleSheet.absoluteFillObject,
   },
 
   /* Driver on the way */

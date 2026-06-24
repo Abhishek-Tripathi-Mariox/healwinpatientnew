@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
 
 import { BackButton } from '../components';
 import { ChevronForwardIcon, MapPinIcon } from '../components/icons';
 import { getCurrentLocation, reverseGeocode, searchPlaces, resolvePlace, type PlaceSuggestion } from '../services/geo';
+import { addressStore, useAddresses, type Address } from '../state/addressStore';
 import { bookingDraftStore } from '../state/bookingDraftStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow, floatingShadow } from '../theme/shadows';
@@ -20,6 +21,10 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
+
+/** Build a single-line, human-readable address from a saved Address. */
+const formatAddress = (a: Address): string =>
+  [a.line1, a.line2, a.city, a.state, a.pincode].filter(Boolean).join(', ');
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlanAmbulanceMap'>;
 
@@ -48,6 +53,15 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
+
+  // Saved addresses — a quick-pick alternative to typing/panning, for BOTH
+  // pickup and drop. Kept fresh on focus (e.g. after adding one elsewhere).
+  const savedAddresses = useAddresses();
+  useFocusEffect(
+    React.useCallback(() => {
+      addressStore.load().catch(() => undefined);
+    }, []),
+  );
 
   // Debounce reverse-geocoding so we don't hammer the API while panning.
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,9 +164,35 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
     );
   };
 
+  // Pick a saved address: show its text immediately, then forward-geocode it so
+  // the map pin + live distance line up. Falls back to the text-only address
+  // (still usable for the booking) when coords can't be resolved.
+  const pickSaved = async (a: Address) => {
+    const text = formatAddress(a);
+    setSuggestions([]);
+    setQuery('');
+    setAddress(text);
+    setResolving(true);
+    const loc = await resolvePlace({ description: text });
+    setResolving(false);
+    if (loc?.lat != null) {
+      setCenter({ lat: loc.lat, lng: loc.lng });
+      setAddress(loc.address || text);
+      mapRef.current?.animateToRegion(
+        { latitude: loc.lat, longitude: loc.lng, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        600,
+      );
+    }
+  };
+
   const confirm = () => {
+    // Never persist the "Move the map…" placeholder (or a blank/in-progress
+    // address) as the real pickup/drop — fall back to a coords label so the
+    // booking always shows a meaningful location.
+    const coordsLabel = `Pinned location (${center.lat.toFixed(5)}, ${center.lng.toFixed(5)})`;
+    const isPlaceholder = !address || resolving || /^move the map/i.test(address);
     const loc = {
-      address: resolving ? `Pinned location (${center.lat.toFixed(5)}, ${center.lng.toFixed(5)})` : address,
+      address: isPlaceholder ? coordsLabel : address,
       lat: center.lat,
       lng: center.lng,
     };
@@ -225,6 +265,13 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
             </ScrollView>
           </View>
         )}
+        {query.trim().length >= 3 && !searching && suggestions.length === 0 && (
+          <View style={[styles.suggestions, floatingShadow]}>
+            <Text style={styles.searchHint}>
+              No matches. Drag the map to place the pin, or tap the location button to use your current spot.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Locate-me button */}
@@ -251,6 +298,30 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
           <MapPinIcon size={scale(17)} />
           <Text style={styles.locationTitle}>{isDrop ? 'Drop location' : 'Pickup location'}</Text>
         </View>
+
+        {/* Saved addresses — quick-pick chips (works for pickup and drop). */}
+        {savedAddresses.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.chipRow}
+          >
+            {savedAddresses.map((a) => (
+              <Pressable
+                key={a.id}
+                onPress={() => pickSaved(a)}
+                style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+              >
+                <MapPinIcon size={scale(13)} color={colors.directionsBlue} />
+                <Text style={styles.chipText} numberOfLines={1}>
+                  {a.addressType || (a.isDefault ? 'Home' : 'Saved')}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
         <View style={styles.addressBox}>
           {resolving ? (
             <ActivityIndicator size="small" color={colors.inkMuted} />
@@ -343,6 +414,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: colors.textBlack,
   },
+  searchHint: {
+    padding: scale(12),
+    fontFamily: fonts.regular,
+    fontSize: scale(12.5),
+    lineHeight: scale(18),
+    color: colors.inkMuted,
+  },
 
   // The pin's tip sits at the exact map centre: shift up by ~half its height.
   centerPin: {
@@ -383,6 +461,29 @@ const styles = StyleSheet.create({
   locationTitle: {
     fontFamily: fonts.semiBold,
     fontSize: scale(14),
+    letterSpacing: -0.3,
+    color: colors.textBlack,
+  },
+  chipRow: {
+    gap: scale(8),
+    paddingTop: verticalScale(12),
+    paddingRight: scale(4),
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    maxWidth: scale(150),
+    height: verticalScale(34),
+    borderRadius: scale(18),
+    borderWidth: 1,
+    borderColor: colors.dashBorder,
+    backgroundColor: colors.dashBg,
+    paddingHorizontal: scale(12),
+  },
+  chipText: {
+    fontFamily: fonts.medium,
+    fontSize: scale(12.5),
     letterSpacing: -0.3,
     color: colors.textBlack,
   },

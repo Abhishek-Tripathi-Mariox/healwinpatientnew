@@ -15,6 +15,18 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'EmergencyContacts'>;
 
 interface Contact { id: string; name: string; phone: string; relationship: string }
 
+// Must match the backend EmergencyContact `relationship` enum exactly
+// (uppercase). Free text used to throw a Mongoose enum validation error.
+const RELATIONSHIPS: { value: string; label: string }[] = [
+  { value: 'PARENT', label: 'Parent' },
+  { value: 'SPOUSE', label: 'Spouse' },
+  { value: 'SIBLING', label: 'Sibling' },
+  { value: 'FRIEND', label: 'Friend' },
+  { value: 'OTHER', label: 'Other' },
+];
+const relLabel = (v?: string) =>
+  RELATIONSHIPS.find((r) => r.value === (v || '').toUpperCase())?.label || v || '';
+
 const mapC = (c: any): Contact => ({
   id: c._id || c.id,
   name: c.name || '',
@@ -57,7 +69,7 @@ export const EmergencyContactsScreen: React.FC = () => {
     }
     setSaving(true);
     try {
-      const payload = { name: form.name.trim(), phone: form.phone.trim(), relationship: form.relationship.trim() || 'Other' };
+      const payload = { name: form.name.trim(), phone: form.phone.trim(), relationship: (form.relationship || 'OTHER').toUpperCase() };
       if (editing) await sosApi.updateContact(editing.id, payload);
       else await sosApi.addContact(payload);
       setOpen(false);
@@ -108,7 +120,7 @@ export const EmergencyContactsScreen: React.FC = () => {
                   <Text style={styles.name}>{c.name}</Text>
                   <View style={styles.phoneRow}>
                     <PhoneIcon size={scale(13)} color={colors.inkMuted} />
-                    <Text style={styles.phone}>{c.phone}{c.relationship ? ` · ${c.relationship}` : ''}</Text>
+                    <Text style={styles.phone}>{c.phone}{c.relationship ? ` · ${relLabel(c.relationship)}` : ''}</Text>
                   </View>
                 </View>
                 <Pressable onPress={() => openEdit(c)} hitSlop={8}><Text style={styles.edit}>Edit</Text></Pressable>
@@ -132,8 +144,21 @@ export const EmergencyContactsScreen: React.FC = () => {
           <TextInput value={form.name} onChangeText={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Contact name" placeholderTextColor={colors.placeholder} style={styles.input} />
           <Text style={styles.label}>Mobile number</Text>
           <TextInput value={form.phone} onChangeText={(v) => setForm((f) => ({ ...f, phone: v }))} keyboardType="number-pad" maxLength={10} placeholder="10-digit mobile" placeholderTextColor={colors.placeholder} style={styles.input} />
-          <Text style={styles.label}>Relationship (optional)</Text>
-          <TextInput value={form.relationship} onChangeText={(v) => setForm((f) => ({ ...f, relationship: v }))} placeholder="e.g. Spouse, Parent, Friend" placeholderTextColor={colors.placeholder} style={styles.input} />
+          <Text style={styles.label}>Relationship</Text>
+          <View style={styles.relRow}>
+            {RELATIONSHIPS.map((r) => {
+              const active = (form.relationship || '').toUpperCase() === r.value;
+              return (
+                <Pressable
+                  key={r.value}
+                  onPress={() => setForm((f) => ({ ...f, relationship: r.value }))}
+                  style={[styles.relChip, active && styles.relChipActive]}
+                >
+                  <Text style={[styles.relChipText, active && styles.relChipTextActive]}>{r.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Pressable disabled={saving} onPress={save} style={({ pressed }) => [styles.submit, (pressed || saving) && styles.pressed]}>
             <Text style={styles.submitText}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Add contact'}</Text>
           </Pressable>
@@ -163,6 +188,11 @@ const styles = StyleSheet.create({
   sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textBlack, marginBottom: verticalScale(6) },
   label: { fontFamily: fonts.medium, fontSize: scale(13), color: '#4A4A4A', marginTop: verticalScale(10), marginBottom: verticalScale(6) },
   input: { height: verticalScale(46), borderRadius: scale(10), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, paddingHorizontal: scale(14), fontFamily: fonts.regular, fontSize: scale(14), color: colors.textBlack },
+  relRow: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(8) },
+  relChip: { paddingHorizontal: scale(14), height: verticalScale(36), borderRadius: scale(18), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  relChipActive: { backgroundColor: colors.brandRed, borderColor: colors.brandRed },
+  relChipText: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.inkMuted },
+  relChipTextActive: { color: colors.textWhite },
   submit: { height: verticalScale(50), borderRadius: scale(12), backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(18) },
   pressed: { opacity: 0.85 },
   submitText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },

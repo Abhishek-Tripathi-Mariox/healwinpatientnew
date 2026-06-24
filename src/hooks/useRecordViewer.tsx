@@ -70,6 +70,13 @@ export function useRecordViewer() {
               resizeMode="contain"
               onLoadStart={() => setImgLoading(true)}
               onLoadEnd={() => setImgLoading(false)}
+              onError={() => {
+                // Without this the spinner would spin forever when an image
+                // fails to load (broken/unreachable URL, cleartext blocked).
+                setImgLoading(false);
+                setPreview(null);
+                Alert.alert('Could not load', 'This file could not be opened in the app. Try “Open in browser”.');
+              }}
             />
           )}
         </ScrollView>

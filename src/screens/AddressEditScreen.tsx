@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
@@ -19,9 +19,22 @@ const ADDRESS_TYPES: Address['addressType'][] = ['Home', 'Work', 'Other'];
 export const AddressEditScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const [f, setF] = useState({ line1: '', line2: '', city: '', state: '', pincode: '' });
-  const [addressType, setAddressType] = useState<Address['addressType']>('Home');
-  const [isDefault, setIsDefault] = useState(false);
+  const route = useRoute<RouteProp<RootStackParamList, 'AddressEdit'>>();
+  const editing = route.params?.address;
+  const profile = authStore.getSnapshot().profile;
+
+  const [f, setF] = useState({
+    line1: editing?.line1 || '',
+    line2: editing?.line2 || '',
+    city: editing?.city || '',
+    state: editing?.state || '',
+    pincode: editing?.pincode || '',
+    // Backend requires a contact mobile on each address — editable, prefilled
+    // from the address being edited or the logged-in profile.
+    mobile: editing?.mobileNumber || profile?.mobileNumber || '',
+  });
+  const [addressType, setAddressType] = useState<Address['addressType']>(editing?.addressType || 'Home');
+  const [isDefault, setIsDefault] = useState(!!editing?.isDefault);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -52,10 +65,13 @@ export const AddressEditScreen: React.FC = () => {
         }));
       } else {
         const addr = await reverseGeocode(loc.lat, loc.lng);
-        setF((s) => ({
-          ...s,
-          line1: addr || `Lat ${loc.lat.toFixed(5)}, Lng ${loc.lng.toFixed(5)}`,
-        }));
+        if (addr) {
+          setF((s) => ({ ...s, line1: addr }));
+        } else {
+          // Don't dump raw lat/long into the address line — ask the user to
+          // type it (the reverse-geocode needs a valid backend Google key).
+          setErr('Could not read your address automatically. Please type it in.');
+        }
       }
     } catch (e: any) {
       setErr(e?.message || 'Could not get your location.');
@@ -74,19 +90,26 @@ export const AddressEditScreen: React.FC = () => {
       setErr('Enter a valid 6-digit pincode.');
       return;
     }
+    if (!/^[6-9]\d{9}$/.test(f.mobile.trim())) {
+      setErr('Enter a valid 10-digit mobile number for this address.');
+      return;
+    }
     setErr('');
     setSaving(true);
     try {
-      // Backend requires a contact name + mobile on each address — take them
-      // from the logged-in profile so the user doesn't have to re-enter them.
-      const profile = authStore.getSnapshot().profile;
-      await addressStore.add({
-        ...f,
+      const payload = {
+        line1: f.line1,
+        line2: f.line2,
+        city: f.city,
+        state: f.state,
+        pincode: f.pincode,
         addressType,
         fullName: profile?.fullName || 'Customer',
-        mobileNumber: profile?.mobileNumber || '',
+        mobileNumber: f.mobile.trim(),
         isDefault,
-      });
+      };
+      if (editing) await addressStore.update(editing.id, payload);
+      else await addressStore.add(payload);
       navigation.goBack();
     } catch (e: any) {
       setErr(e?.message || 'Could not save address. Please try again.');
@@ -97,7 +120,7 @@ export const AddressEditScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Add Address" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={editing ? 'Edit Address' : 'Add Address'} onBack={() => navigation.goBack()} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + verticalScale(30) }]}
@@ -112,6 +135,7 @@ export const AddressEditScreen: React.FC = () => {
         <Input label="City" value={f.city} onChangeText={set('city')} />
         <Input label="State" value={f.state} onChangeText={set('state')} />
         <Input label="Pincode" value={f.pincode} onChangeText={set('pincode')} keyboardType="number-pad" maxLength={6} />
+        <Input label="Contact mobile" value={f.mobile} onChangeText={set('mobile')} keyboardType="number-pad" maxLength={10} />
 
         <Text style={styles.label}>Address type</Text>
         <View style={styles.typeRow}>

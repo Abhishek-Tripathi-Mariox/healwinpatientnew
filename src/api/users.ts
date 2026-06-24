@@ -18,7 +18,7 @@ interface ServerAddress {
   district?: string;
   state?: string;
   pinCode?: number | string;
-  isDefault?: boolean;
+  isSelected?: boolean;
 }
 
 const toAddress = (s: ServerAddress): Address => ({
@@ -31,7 +31,8 @@ const toAddress = (s: ServerAddress): Address => ({
   fullName: s.fullName,
   mobileNumber: s.mobileNumber,
   addressType: (s.addressType as Address['addressType']) || 'Home',
-  isDefault: s.isDefault,
+  // Backend stores the default flag as `isSelected`, not `isDefault`.
+  isDefault: s.isSelected,
 });
 
 // Map to the backend's address schema. The backend requires fullName,
@@ -46,7 +47,7 @@ const toServer = (a: Partial<Address>) => ({
   district: a.city,
   state: a.state,
   pinCode: a.pincode ? Number(a.pincode) : undefined,
-  isDefault: a.isDefault,
+  isSelected: a.isDefault,
 });
 
 export const addressApi = {

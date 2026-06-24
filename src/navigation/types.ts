@@ -1,5 +1,6 @@
 import type { FamilyMember } from '../state/familyStore';
 import type { SavedContact } from '../state/contactsStore';
+import type { Address } from '../state/addressStore';
 
 /** Route param list for the root native stack. */
 export type RootStackParamList = {
@@ -34,7 +35,7 @@ export type RootStackParamList = {
 
   // Addresses
   AddressList: undefined;
-  AddressEdit: undefined;
+  AddressEdit: { address?: Address } | undefined;
 
   // Bookings
   Bookings: undefined;

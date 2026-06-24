@@ -6,12 +6,24 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { bookingsApi, toUiBooking, UiBooking, timelineLabel, fmtTimelineTime } from '../api/bookings';
+import { reverseGeocode } from '../services/geo';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'BookingDetail'>;
 type Rt = RouteProp<RootStackParamList, 'BookingDetail'>;
+
+// Pull "lat, lng" out of a label like "Pinned location (26.84670, 80.94620)".
+const coordsOf = (a?: string): { lat: number; lng: number } | null => {
+  const m = a?.match(/(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/);
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+};
+// A bare-coordinates label (no real place name) we should reverse-geocode.
+const isCoordsLabel = (a?: string): a is string => !!a && /^pinned location/i.test(a) && !!coordsOf(a);
 
 export const BookingDetailScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -21,6 +33,9 @@ export const BookingDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [ratingBusy, setRatingBusy] = useState(false);
+  // Reverse-geocoded place names for older bookings whose pickup/drop were saved
+  // as raw "Pinned location (lat, lng)" labels — keyed by the original label.
+  const [resolvedAddr, setResolvedAddr] = useState<Record<string, string>>({});
 
   const submitRating = async (stars: number) => {
     if (!booking || ratingBusy) return;
@@ -47,6 +62,24 @@ export const BookingDetailScreen: React.FC = () => {
     };
   }, [params.id]);
 
+  // Turn any raw-coordinate pickup/drop labels into real place names for
+  // display (reverse geocode runs server-side). Newer bookings already store a
+  // proper address, so this only kicks in for older coords-only ones.
+  useEffect(() => {
+    if (!booking) return;
+    let active = true;
+    const labels = [booking.pickupAddress, booking.dropAddress].filter(isCoordsLabel);
+    labels.forEach(async (label) => {
+      const c = coordsOf(label);
+      if (!c) return;
+      const name = await reverseGeocode(c.lat, c.lng);
+      if (active && name) setResolvedAddr((prev) => ({ ...prev, [label]: name }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [booking]);
+
   if (loading) {
     return (
       <View style={styles.root}>
@@ -66,21 +99,31 @@ export const BookingDetailScreen: React.FC = () => {
   }
 
   const cancelled = booking.status === 'cancelled';
+  const by = String(booking.cancelledBy || '').toLowerCase();
+  // Empty when we don't know who cancelled — the title then reads just
+  // "Cancelled" instead of the confusing "Cancelled by Cancelled".
   const cancelledByLabel =
-    booking.cancelledBy === 'patient'
+    by === 'patient' || by === 'user'
       ? 'You'
-      : booking.cancelledBy === 'admin' || booking.cancelledBy === 'system'
+      : by === 'admin' || by === 'system' || by === 'control room'
         ? 'Control room'
-        : booking.cancelledBy === 'driver'
+        : by === 'driver'
           ? 'Driver'
-          : 'Cancelled';
+          : '';
+
+  // Prefer a reverse-geocoded place name over a raw-coords label when we have
+  // one; otherwise show the stored address. Drop the "Move the map…" placeholder.
+  const display = (a?: string) => (a && resolvedAddr[a]) || a;
+  const realAddr = (a?: string) => (a && !/^move the map/i.test(a) ? a : undefined);
+  const pickupAddress = realAddr(display(booking.pickupAddress));
+  const dropAddress = realAddr(display(booking.dropAddress));
 
   const rows: [string, string][] = [
     ['Booking ID', booking.id],
     ['Type', booking.type],
     ['Date & time', booking.date],
-    ...(booking.pickupAddress ? [['Pickup', booking.pickupAddress] as [string, string]] : []),
-    ...(booking.dropAddress ? [['Drop', booking.dropAddress] as [string, string]] : []),
+    ...(pickupAddress ? [['Pickup', pickupAddress] as [string, string]] : []),
+    ...(dropAddress ? [['Drop', dropAddress] as [string, string]] : []),
     ...(booking.recipientName ? [['Booked for', booking.recipientName] as [string, string]] : []),
     ...(booking.recipientPhone ? [['Contact', booking.recipientPhone] as [string, string]] : []),
     ['Driver', booking.driverName],
@@ -196,7 +239,9 @@ export const BookingDetailScreen: React.FC = () => {
         {/* Cancellation summary */}
         {cancelled && (
           <View style={[styles.cancelCard, cardShadow]}>
-            <Text style={styles.cancelTitle}>Cancelled by {cancelledByLabel}</Text>
+            <Text style={styles.cancelTitle}>
+              {cancelledByLabel ? `Cancelled by ${cancelledByLabel}` : 'Cancelled'}
+            </Text>
             {!!booking.cancelReason && <Text style={styles.cancelReason}>{booking.cancelReason}</Text>}
             {booking.cancellationCharge > 0 ? (
               <Text style={styles.cancelChargeNote}>

@@ -9,7 +9,7 @@ import ForestBg from '../assets/svg/forest_bg.svg';
 import Avatar from '../assets/svg/avatar.svg';
 import AmbulanceCard from '../assets/svg/ambulance_card.svg';
 import AmbulanceSearch from '../assets/svg/ambulance_search.svg';
-import Hospital from '../assets/svg/hospital.svg';
+import Hospital from '../assets/svg/homepagerename.svg';
 import TripMap from '../assets/svg/trip_map.svg';
 import Wallet from '../assets/svg/wallet.svg';
 import Cash from '../assets/svg/cash.svg';

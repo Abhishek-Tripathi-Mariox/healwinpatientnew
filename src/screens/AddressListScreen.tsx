@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,7 +36,11 @@ export const AddressListScreen: React.FC = () => {
       ) : (
         <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + verticalScale(90) }]}>
           {addresses.map((a) => (
-            <View key={a.id} style={[styles.card, cardShadow]}>
+            <Pressable
+              key={a.id}
+              style={({ pressed }) => [styles.card, cardShadow, pressed && styles.pressed]}
+              onPress={() => navigation.navigate('AddressEdit', { address: a })}
+            >
               <MapPinIcon size={scale(22)} />
               <View style={styles.body}>
                 <View style={styles.titleRow}>
@@ -51,8 +55,9 @@ export const AddressListScreen: React.FC = () => {
                   {a.line2 ? a.line2 + '\n' : ''}
                   {a.city}, {a.state} - {a.pincode}
                 </Text>
+                <Text style={styles.editHint}>Tap to edit</Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}
@@ -85,5 +90,7 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: '#EAF1FE', borderRadius: scale(6), paddingHorizontal: scale(8), paddingVertical: verticalScale(2) },
   badgeText: { fontFamily: fonts.medium, fontSize: scale(10), color: colors.directionsBlue },
   rest: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(5), lineHeight: scale(17) },
+  editHint: { fontFamily: fonts.medium, fontSize: scale(11), color: colors.directionsBlue, marginTop: verticalScale(6) },
+  pressed: { opacity: 0.7 },
   fab: { position: 'absolute', right: spacing.lg },
 });

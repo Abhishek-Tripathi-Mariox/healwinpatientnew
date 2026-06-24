@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SvgProps } from 'react-native-svg';
+import { Button } from './Button';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 
@@ -25,6 +26,8 @@ export interface AmbulanceTypeCardProps {
   /** Background image opacity (Figma 0.64–0.9). */
   backgroundOpacity?: number;
   onPress?: () => void;
+  /** When provided, shows a "Book Now" outline pill inside the card. */
+  onBook?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -42,6 +45,7 @@ export const AmbulanceTypeCard: React.FC<AmbulanceTypeCardProps> = ({
   titleSize = scale(18),
   backgroundOpacity = 0.85,
   onPress,
+  onBook,
   style,
 }) => {
   const vehicleOnLeft = imageSide === 'left';
@@ -80,10 +84,20 @@ export const AmbulanceTypeCard: React.FC<AmbulanceTypeCardProps> = ({
         </Text>
         <Text
           style={[styles.desc, { textAlign: vehicleOnLeft ? 'right' : 'left' }]}
-          numberOfLines={4}
+          numberOfLines={onBook ? 2 : 4}
         >
           {description}
         </Text>
+        {onBook && (
+          <Button
+            label="Book Now"
+            variant="outline"
+            color={colors.brandRed}
+            textColor={colors.brandRed}
+            onPress={onBook}
+            style={[styles.book, { alignSelf: vehicleOnLeft ? 'flex-end' : 'flex-start' }]}
+          />
+        )}
       </View>
     </Pressable>
   );
@@ -141,5 +155,9 @@ const styles = StyleSheet.create({
     textShadowColor: colors.shadow,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 3,
+  },
+  book: {
+    marginTop: verticalScale(10),
+    backgroundColor: 'transparent',
   },
 });

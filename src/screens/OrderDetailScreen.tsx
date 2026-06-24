@@ -80,18 +80,39 @@ export const OrderDetailScreen: React.FC = () => {
         )}
 
         {/* Lab report */}
-        {kind === 'lab' && (
+        {kind === 'lab' && (() => {
+          // A report may span multiple pages/files. Fall back to the legacy
+          // single-file `reportUrl` for older bookings.
+          const files: { url: string; label?: string }[] =
+            Array.isArray(o.reportFiles) && o.reportFiles.length > 0
+              ? o.reportFiles
+              : o.reportUrl
+                ? [{ url: o.reportUrl, label: 'Report' }]
+                : [];
+          const hasReport = o.status === 'REPORT_READY' || !!o.reportNotes || files.length > 0;
+          return (
           <View style={[styles.card, styles.gap, cardShadow]}>
             <Text style={styles.sectionTitle}>Report</Text>
-            {o.status === 'REPORT_READY' || o.reportNotes || o.reportUrl ? (
+            {hasReport ? (
               <>
-                {!!o.reportNotes && <Text style={styles.body}>{o.reportNotes}</Text>}
-                {!!o.reportUrl && (
-                  <Pressable onPress={() => open(o.reportUrl)} style={({ pressed }) => [styles.download, pressed && styles.pressed]}>
-                    <Text style={styles.downloadText}>⬇  Download report</Text>
-                  </Pressable>
+                {!!o.reportNotes && (
+                  <>
+                    <Text style={styles.body}>{o.reportNotes}</Text>
+                    {files.length > 0 && <View style={{ height: verticalScale(8) }} />}
+                  </>
                 )}
-                {!o.reportNotes && !o.reportUrl && <Text style={styles.muted}>Report is ready.</Text>}
+                {files.map((f, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => open(f.url)}
+                    style={({ pressed }) => [styles.download, i > 0 && styles.gapSmFile, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.downloadText}>
+                      ⬇  {files.length > 1 ? (f.label || `Page ${i + 1}`) : 'Download report'}
+                    </Text>
+                  </Pressable>
+                ))}
+                {!o.reportNotes && files.length === 0 && <Text style={styles.muted}>Report is ready.</Text>}
               </>
             ) : (
               <Text style={styles.muted}>Your report will appear here once the lab completes the test.</Text>
@@ -108,7 +129,8 @@ export const OrderDetailScreen: React.FC = () => {
               </>
             )}
           </View>
-        )}
+          );
+        })()}
 
         {/* Pharmacy items */}
         {kind === 'pharmacy' && (
@@ -158,6 +180,7 @@ const styles = StyleSheet.create({
   body: { fontFamily: fonts.regular, fontSize: scale(13.5), color: colors.textBlack, lineHeight: scale(20) },
   muted: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.inkMuted, lineHeight: scale(19) },
   download: { marginTop: verticalScale(12), height: verticalScale(46), borderRadius: scale(10), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },
+  gapSmFile: { marginTop: verticalScale(8) },
   pressed: { opacity: 0.85 },
   downloadText: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.textWhite },
   lineRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: verticalScale(5) },

@@ -100,7 +100,7 @@ export const PlanAmbulanceScreen: React.FC = () => {
             style={[styles.pill, mode === 'me' ? styles.pillActive : styles.pillIdle]}
           >
             <PersonIcon size={scale(15)} color={mode === 'me' ? colors.textWhite : colors.textPrimary} />
-            <Text style={[styles.pillText, mode === 'me' && styles.pillTextActive]}>For Someone Else</Text>
+            <Text style={[styles.pillText, mode === 'me' && styles.pillTextActive]}>For Someone</Text>
           </Pressable>
         </View>
 

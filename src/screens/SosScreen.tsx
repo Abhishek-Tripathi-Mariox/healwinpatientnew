@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,7 +34,9 @@ export const SosScreen: React.FC = () => {
   const [seconds, setSeconds] = useState(5);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const coords = useRef<{ lat: number; lng: number } | null>(null);
+  const sent = useRef(false);
   const [assigned, setAssigned] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   // Once the SOS is sent, wait for the dispatcher to assign an ambulance. The
   // backend pushes `booking:accepted` to this user the instant a crew is
@@ -73,30 +75,65 @@ export const SosScreen: React.FC = () => {
   useEffect(() => {
     if (phase !== 'countdown') return;
     setSeconds(5);
+    sent.current = false;
     // Refresh the fix during the countdown too (keeps the latest position).
     void getCurrentLocation().then((loc) => {
       if (loc) coords.current = { lat: loc.lat, lng: loc.lng };
     });
+
+    // Raise an SOS that lands in the admin SOS Dashboard — SOS Call →
+    // "SOS Calls" tab, SOS Help → "SOS Forms" tab — NOT in Ambulance Requests.
+    // The dispatcher then dispatches a crew from there.
+    const sendSos = async () => {
+      if (sent.current) return;
+      // Location is MANDATORY for an SOS — without it the dispatcher has no
+      // point to send a crew to, so the request can't be dispatched at all.
+      // Resolve it FIRST; if the warm-up fix hasn't landed, make one final
+      // awaited attempt (the 30s GPS cache makes this near-instant when a fix
+      // already exists).
+      setResolving(true);
+      let loc = coords.current;
+      if (!loc) {
+        loc = await getCurrentLocation().catch(() => null);
+        if (loc) coords.current = { lat: loc.lat, lng: loc.lng };
+      }
+      setResolving(false);
+
+      // Hard block: no location → do NOT send. Surface a clear error and let
+      // the user enable Location / retry. An undispatchable SOS is worse than
+      // a blocked one (the patient would think help is coming when it isn't).
+      if (!loc) {
+        setPhase(mode === 'call' ? 'choose' : 'form');
+        Alert.alert(
+          'Location required',
+          'We couldn’t get your location. An ambulance cannot be dispatched without it.\n\nPlease turn on Location (GPS), allow location access for HealWin, then try again.',
+          [
+            { text: 'Open settings', onPress: () => void Linking.openSettings().catch(() => undefined) },
+            { text: 'Retry', onPress: () => setPhase('countdown') },
+          ],
+        );
+        return;
+      }
+
+      sent.current = true;
+      setPhase('sent');
+      await sosApi
+        .trigger({
+          submissionType: mode === 'call' ? 'CALL' : 'FORM',
+          type: mode === 'call' ? 'Medical Emergency' : type,
+          name: name.trim() || profile.name || undefined,
+          description: desc || undefined,
+          address: 'Current location',
+          location: { lat: loc.lat, lng: loc.lng },
+        })
+        .catch(() => undefined);
+    };
+
     timer.current = setInterval(() => {
       setSeconds((s) => {
         if (s <= 1) {
           if (timer.current) clearInterval(timer.current);
-          // Raise an SOS that lands in the admin SOS Dashboard — SOS Call →
-          // "SOS Calls" tab, SOS Help → "SOS Forms" tab — NOT in Ambulance
-          // Requests. The dispatcher then dispatches a crew from there.
-          void sosApi
-            .trigger({
-              submissionType: mode === 'call' ? 'CALL' : 'FORM',
-              type: mode === 'call' ? 'Medical Emergency' : type,
-              name: name.trim() || profile.name || undefined,
-              description: desc || undefined,
-              address: coords.current ? 'Current location' : undefined,
-              location: coords.current
-                ? { lat: coords.current.lat, lng: coords.current.lng }
-                : undefined,
-            })
-            .catch(() => undefined);
-          setPhase('sent');
+          void sendSos();
           return 0;
         }
         return s - 1;
@@ -182,7 +219,9 @@ export const SosScreen: React.FC = () => {
           <View style={styles.countCircle}>
             <Text style={styles.countNum}>{seconds}</Text>
           </View>
-          <Text style={styles.countText}>Dispatching SOS in {seconds}s…</Text>
+          <Text style={styles.countText}>
+            {resolving ? 'Getting your location…' : `Dispatching SOS in ${seconds}s…`}
+          </Text>
           <Text style={styles.countSub}>Dispatch to your current location</Text>
           <Pressable style={styles.cancel} onPress={() => setPhase(mode === 'call' ? 'choose' : 'form')}>
             <Text style={styles.cancelText}>Cancel SOS</Text>
