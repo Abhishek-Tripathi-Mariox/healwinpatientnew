@@ -9,7 +9,7 @@ import { ChevronForwardIcon, DestMarkerIcon, MapPinIcon, OriginMarkerIcon, Perso
 import { contactsStore, useSavedContacts, useSelectedRecipient } from '../state/contactsStore';
 import { familyStore, useFamilyMembers } from '../state/familyStore';
 import { addressStore, useAddresses, Address } from '../state/addressStore';
-import { bookingDraftStore, useDraftPickup } from '../state/bookingDraftStore';
+import { bookingDraftStore, useDraftPickup, useDraftDrop } from '../state/bookingDraftStore';
 import { resolvePlace } from '../services/geo';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
@@ -32,6 +32,7 @@ export const PlanAmbulanceScreen: React.FC = () => {
   const recipient = useSelectedRecipient();
   const addresses = useAddresses();
   const pickup = useDraftPickup();
+  const drop = useDraftDrop();
   const [resolving, setResolving] = useState<string | null>(null);
 
   // Saved addresses are stored as text only (no coordinates). When one is
@@ -118,19 +119,29 @@ export const PlanAmbulanceScreen: React.FC = () => {
           </Pressable>
         ) : null}
 
-        {/* Pickup / Drop card — reflects the real chosen pickup. */}
+        {/* Pickup / Drop card — tap a row to type/pick the location on the map. */}
         <View style={[styles.routeCard, cardShadow]}>
-          <View style={styles.routeRow}>
+          <Pressable
+            style={styles.routeRow}
+            onPress={() => navigation.navigate('PlanAmbulanceMap', { mode: 'pickup', next: 'select' })}
+          >
             <OriginMarkerIcon size={scale(15)} />
             <Text style={styles.routeValue} numberOfLines={2}>
               {pickup?.address || 'Current location (GPS)'}
             </Text>
-          </View>
+            <Text style={styles.routeEdit}>Edit</Text>
+          </Pressable>
           <View style={styles.routeDivider} />
-          <View style={styles.routeRow}>
+          <Pressable
+            style={styles.routeRow}
+            onPress={() => navigation.navigate('PlanAmbulanceMap', { mode: 'drop', next: 'select' })}
+          >
             <DestMarkerIcon size={scale(14)} />
-            <Text style={styles.routeLabel}>Drop Location — set on the next screen</Text>
-          </View>
+            <Text style={drop?.address ? styles.routeValue : styles.routeLabel} numberOfLines={2}>
+              {drop?.address || 'Set drop location (optional)'}
+            </Text>
+            <Text style={styles.routeEdit}>{drop?.address ? 'Edit' : 'Add'}</Text>
+          </Pressable>
         </View>
 
         {/* Saved addresses (real, from the backend) */}
@@ -316,6 +327,11 @@ const styles = StyleSheet.create({
     fontSize: scale(13),
     letterSpacing: -0.3,
     color: colors.textBlack,
+  },
+  routeEdit: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(12),
+    color: colors.linkBlue,
   },
   sectionLabel: {
     fontFamily: fonts.medium,

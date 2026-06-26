@@ -13,7 +13,7 @@ import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 // Screens a notification is allowed to deep-link to (guards against bad data).
-const NAV_TARGETS = new Set(['MyOrders', 'Tracking', 'Bookings', 'Home', 'Notifications', 'MyCredits', 'Membership']);
+const NAV_TARGETS = new Set(['MyOrders', 'Tracking', 'Bookings', 'Home', 'Notifications', 'MyCredits', 'Membership', 'TicketDetail']);
 
 interface Notif {
   id: string;

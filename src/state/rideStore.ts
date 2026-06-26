@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { ambulanceApi, BookAmbulanceInput, FareBreakdown, ServerAmbulanceBooking } from '../api/ambulance';
+import { ambulanceApi, BookAmbulanceInput, FareBreakdown, InTransitExpense, ServerAmbulanceBooking } from '../api/ambulance';
 import { distanceKm as calcDistance, etaMinutesFromKm, LatLng } from '../services/geo';
 
 export interface ActiveRide {
@@ -12,6 +12,11 @@ export interface ActiveRide {
   // Real fare (computed by the backend fare engine at booking time).
   amount?: number | null;
   fareBreakdown?: FareBreakdown | null;
+  // In-transit medical expenses billed on top of the ambulance fare.
+  inTransitExpenses?: InTransitExpense[];
+  inTransitTotal?: number;
+  grandTotal?: number | null; // amount + inTransitTotal — what the patient pays
+  paymentStatus?: 'PENDING' | 'PAID';
   // Live tracking
   pickup?: LatLng | null;
   ambulance?: LatLng | null; // ambulance's last known position
@@ -47,6 +52,10 @@ const fromServer = (b: ServerAmbulanceBooking): ActiveRide => {
     otp: b.otp,
     amount: b.amount ?? b.fareBreakdown?.finalFare ?? null,
     fareBreakdown: b.fareBreakdown ?? null,
+    inTransitExpenses: b.inTransitExpenses ?? [],
+    inTransitTotal: b.inTransitTotal ?? 0,
+    grandTotal: b.grandTotal ?? b.amount ?? b.fareBreakdown?.finalFare ?? null,
+    paymentStatus: b.paymentStatus ?? 'PENDING',
     pickup,
     ambulance,
     distanceKm: km,

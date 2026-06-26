@@ -20,6 +20,7 @@ export const TicketDetailScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Rt>();
+  const scrollRef = React.useRef<ScrollView>(null);
   const [ticket, setTicket] = React.useState<any>(null);
   const [messages, setMessages] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -99,7 +100,11 @@ export const TicketDetailScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenHeader title={ticket?.subject || 'Ticket'} onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={[styles.thread, { paddingBottom: verticalScale(16) }]}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.thread, { paddingBottom: verticalScale(16) }]}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+      >
         {!!ticket && (
           <View style={styles.metaBar}>
             <Text style={styles.metaText}>

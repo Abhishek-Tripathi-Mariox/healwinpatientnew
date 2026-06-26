@@ -46,6 +46,14 @@ export interface LatLng {
   address?: string;
 }
 
+/** One in-transit medical expense line (oxygen, medicine, procedure…). */
+export interface InTransitExpense {
+  item: string;
+  qty: number;
+  rate: number;
+  amount: number;
+}
+
 export interface BookAmbulanceInput {
   type: string;
   pickup: LatLng;
@@ -89,6 +97,12 @@ export interface ServerAmbulanceBooking {
   promoCode?: string | null;
   // Real fare breakup computed at booking time.
   fareBreakdown?: FareBreakdown | null;
+  // In-transit medical expenses (oxygen, medicines…) logged by the control
+  // room during the ride, billed on top of the ambulance fare.
+  inTransitExpenses?: InTransitExpense[];
+  inTransitTotal?: number;
+  grandTotal?: number | null; // ambulance amount + inTransitTotal — final payable
+  paymentStatus?: "PENDING" | "PAID";
   tripDistanceKm?: number | null;
   // Live tracking: ambulance's last reported position + distance from pickup.
   driverLocation?: { lat?: number; lng?: number } | null;
@@ -142,4 +156,7 @@ export const ambulanceApi = {
   detail: (id: string) => api.get<ServerAmbulanceBooking>(`/patient/ambulance/${id}`),
   cancel: (id: string, reason?: string) =>
     api.post(`/patient/ambulance/${id}/cancel`, { reason }),
+  /** Pay the ambulance bill (fare + in-transit expenses). Mock gateway for now. */
+  pay: (id: string, method = 'ONLINE') =>
+    api.post<ServerAmbulanceBooking>(`/patient/ambulance/${id}/pay`, { method }),
 };

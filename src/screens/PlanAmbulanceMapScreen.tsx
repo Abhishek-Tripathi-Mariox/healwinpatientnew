@@ -206,31 +206,17 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      {/* Real interactive map */}
-      <MapView
-        ref={mapRef}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={DEFAULT_REGION}
-        onRegionChangeComplete={onRegionChangeComplete}
-        showsUserLocation
-        showsMyLocationButton={false}
-      />
+      {/* Solid header — back + the manual address search. Kept ABOVE the map
+          (not floating over it) so the search box reliably receives taps: on
+          Android the native MapView swallows touches on views overlaid on it,
+          which left this search field unresponsive. */}
+      <View style={[styles.header, { paddingTop: insets.top + verticalScale(8) }]}>
+        <View style={styles.headerRow}>
+          <BackButton onPress={() => navigation.goBack()} />
+          <Text style={styles.title}>{isDrop ? 'Set drop location' : 'Set pickup location'}</Text>
+        </View>
 
-      {/* Fixed centre pin (the pickup point). Lifted so its tip marks the centre. */}
-      <View pointerEvents="none" style={styles.centerPin}>
-        <MapPinIcon size={scale(40)} />
-      </View>
-
-      {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + verticalScale(8) }]}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>{isDrop ? 'Set drop location' : 'Set pickup location'}</Text>
-      </View>
-
-      {/* Manual address search — type to find a pickup/drop instead of panning. */}
-      <View style={[styles.searchWrap, { top: insets.top + verticalScale(54) }]}>
-        <View style={[styles.searchBar, floatingShadow]}>
+        <View style={styles.searchBar}>
           <MapPinIcon size={scale(18)} color={colors.inkMuted} />
           <TextInput
             value={query}
@@ -249,6 +235,8 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
             </Pressable>
           ) : null}
         </View>
+
+        {/* Suggestions hang below the header, over the map's top edge. */}
         {suggestions.length > 0 && (
           <View style={[styles.suggestions, floatingShadow]}>
             <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: verticalScale(220) }}>
@@ -274,23 +262,40 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Locate-me button */}
-      <Pressable
-        onPress={locateMe}
-        accessibilityLabel="Use my location"
-        style={({ pressed }) => [
-          styles.locateBtn,
-          floatingShadow,
-          { bottom: insets.bottom + verticalScale(170) },
-          pressed && styles.pressed,
-        ]}
-      >
-        {locating ? (
-          <ActivityIndicator size="small" color={colors.directionsBlue} />
-        ) : (
-          <MapPinIcon size={scale(20)} color={colors.directionsBlue} />
-        )}
-      </Pressable>
+      {/* Map fills the area below the header. */}
+      <View style={styles.mapArea}>
+        <MapView
+          ref={mapRef}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={DEFAULT_REGION}
+          onRegionChangeComplete={onRegionChangeComplete}
+          showsUserLocation
+          showsMyLocationButton={false}
+        />
+
+        {/* Fixed centre pin (the pickup point). Lifted so its tip marks the centre. */}
+        <View pointerEvents="none" style={styles.centerPin}>
+          <MapPinIcon size={scale(40)} />
+        </View>
+
+        {/* Locate-me button */}
+        <Pressable
+          onPress={locateMe}
+          accessibilityLabel="Use my location"
+          style={({ pressed }) => [
+            styles.locateBtn,
+            floatingShadow,
+            { bottom: insets.bottom + verticalScale(170) },
+            pressed && styles.pressed,
+          ]}
+        >
+          {locating ? (
+            <ActivityIndicator size="small" color={colors.directionsBlue} />
+          ) : (
+            <MapPinIcon size={scale(20)} color={colors.directionsBlue} />
+          )}
+        </Pressable>
 
       {/* Bottom: resolved address + confirm */}
       <View style={[styles.bottomCard, cardShadow, { paddingBottom: insets.bottom + verticalScale(16) }]}>
@@ -338,6 +343,7 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
           <Text style={styles.ctaText}>{isDrop ? 'Confirm drop' : next === 'drop' ? 'Confirm pickup → set drop' : 'Confirm pickup'}</Text>
           <ChevronForwardIcon size={scale(20)} color={colors.textWhite} />
         </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -345,31 +351,29 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  topBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
+  // Solid top header that holds the back button + search. Sits above the map
+  // (own band) so the search input is never overlaid on the native MapView.
+  header: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    paddingBottom: verticalScale(10),
+    zIndex: 20,
+    elevation: 8,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: verticalScale(8),
+    marginBottom: verticalScale(10),
   },
+  mapArea: { flex: 1 },
   title: {
     fontFamily: fonts.semiBold,
     fontSize: scale(17),
     letterSpacing: -0.3,
     color: colors.textBlack,
     marginLeft: spacing.md,
-    textShadowColor: 'rgba(255,255,255,0.9)',
-    textShadowRadius: 4,
   },
 
-  searchWrap: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -377,6 +381,8 @@ const styles = StyleSheet.create({
     height: verticalScale(46),
     borderRadius: scale(12),
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
     paddingHorizontal: scale(14),
   },
   searchInput: {

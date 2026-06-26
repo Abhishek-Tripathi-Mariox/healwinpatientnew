@@ -65,3 +65,20 @@ export const recordsApi = {
   upload: (form: FormData) => api.upload('/patient/medical-records', form),
   remove: (id: string) => api.del(`/patient/medical-records/${id}`),
 };
+
+export interface FieldCaseNote { _id: string; vitals: Record<string, any> | null; notes: string | null; recordedAt: string }
+export interface FieldPatient {
+  _id: string;
+  patientId: string;
+  fullName: string;
+  gender?: string;
+  phone?: string;
+  registeredAt: string;
+}
+export interface FieldRecords { patients: FieldPatient[]; caseNotes: FieldCaseNote[] }
+
+export const fieldRecordsApi = {
+  /** Hospital records ambulance staff registered against this user's phone,
+   *  plus the vitals / case-notes the crew captured on this user's dispatches. */
+  list: () => api.get<FieldRecords>('/patient/field-records'),
+};

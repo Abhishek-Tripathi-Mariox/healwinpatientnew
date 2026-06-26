@@ -1,4 +1,5 @@
 import { api } from './client';
+import { resolveUploadUrl } from '../config';
 import type { FamilyMember, PickedImage } from '../state/familyStore';
 
 /**
@@ -24,7 +25,7 @@ const toMember = (s: ServerMember): FamilyMember => ({
   phone: s.phone,
   age: s.age != null ? String(s.age) : undefined,
   gender: s.gender,
-  photo: s.photo || undefined,
+  photo: resolveUploadUrl(s.photo),
 });
 
 const toForm = (m: Partial<FamilyMember>, image: PickedImage): FormData => {

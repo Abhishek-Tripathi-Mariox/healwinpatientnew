@@ -1,11 +1,12 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Fab, ScreenHeader } from '../components';
-import { MapPinIcon } from '../components/icons';
+import { CloseIcon, MapPinIcon } from '../components/icons';
+import type { Address } from '../state/addressStore';
 import { addressStore, useAddresses } from '../state/addressStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
@@ -24,6 +25,17 @@ export const AddressListScreen: React.FC = () => {
       addressStore.load().catch(() => undefined);
     }, []),
   );
+
+  const onDelete = (a: Address) => {
+    Alert.alert('Delete address', 'Remove this saved address?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => addressStore.remove(a.id).catch(() => undefined),
+      },
+    ]);
+  };
 
   return (
     <View style={styles.root}>
@@ -57,6 +69,14 @@ export const AddressListScreen: React.FC = () => {
                 </Text>
                 <Text style={styles.editHint}>Tap to edit</Text>
               </View>
+              <Pressable
+                hitSlop={10}
+                onPress={() => onDelete(a)}
+                accessibilityLabel="Delete address"
+                style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+              >
+                <CloseIcon size={scale(16)} color={colors.brandRed} />
+              </Pressable>
             </Pressable>
           ))}
         </ScrollView>
@@ -92,5 +112,14 @@ const styles = StyleSheet.create({
   rest: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(5), lineHeight: scale(17) },
   editHint: { fontFamily: fonts.medium, fontSize: scale(11), color: colors.directionsBlue, marginTop: verticalScale(6) },
   pressed: { opacity: 0.7 },
+  deleteBtn: {
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
+    backgroundColor: '#FCE9E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
   fab: { position: 'absolute', right: spacing.lg },
 });

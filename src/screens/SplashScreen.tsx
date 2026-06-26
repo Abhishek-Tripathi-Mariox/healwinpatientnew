@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { svgs } from '../svgAssets';
-import { colors, scale, verticalScale } from '../theme';
+import { colors, fonts, scale, verticalScale } from '../theme';
 import { floatingShadow } from '../theme/shadows';
 import { useAuth } from '../state/authStore';
 import type { RootStackParamList } from '../navigation/types';
@@ -53,6 +53,7 @@ export const SplashScreen: React.FC = () => {
           <LogoMark width={scale(96)} height={scale(96)} preserveAspectRatio="xMidYMid meet" />
         </View>
         <Logo width={scale(220)} height={scale(45)} preserveAspectRatio="xMidYMid meet" style={styles.wordmark} />
+        <Text style={styles.tag}>Patient</Text>
       </Animated.View>
     </View>
   );
@@ -75,5 +76,12 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     marginTop: verticalScale(28),
+  },
+  tag: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(14),
+    color: colors.directionsBlue,
+    marginTop: verticalScale(14),
+    letterSpacing: 1,
   },
 });

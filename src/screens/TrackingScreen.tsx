@@ -8,6 +8,7 @@ import MapView, { Marker, Polyline as MapPolyline, PROVIDER_GOOGLE } from 'react
 import { BackButton } from '../components';
 import { ChevronDownIcon, MapPinIcon, PersonIcon, PhoneIcon, RebookIcon } from '../components/icons';
 import { rideStore, useActiveRide } from '../state/rideStore';
+import { ambulanceApi } from '../api/ambulance';
 import { socketService } from '../services/socket';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
@@ -49,6 +50,7 @@ export const TrackingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const [expanded, setExpanded] = useState(false);
+  const [paying, setPaying] = useState(false);
   const ride = useActiveRide();
   const mapRef = useRef<MapView | null>(null);
 
@@ -62,12 +64,15 @@ export const TrackingScreen: React.FC = () => {
     // `booking:accepted` (with the dispatchId + OTP) — reload immediately so
     // the patient sees live tracking + OTP without waiting for the 15s poll.
     void socketService.connect();
-    const offAccepted = socketService.on('booking:accepted', () =>
-      rideStore.loadActive().catch(() => undefined),
-    );
+    const reload = () => rideStore.loadActive().catch(() => undefined);
+    const offAccepted = socketService.on('booking:accepted', reload);
+    // Control-room edits (in-transit expenses added, payment marked) emit
+    // booking:status — reload so the new bill shows without waiting for the poll.
+    const offStatus = socketService.on('booking:status', reload);
     return () => {
       clearInterval(t);
       offAccepted();
+      offStatus();
     };
   }, []);
 
@@ -130,8 +135,25 @@ export const TrackingScreen: React.FC = () => {
 
   // Real, server-computed fare. No hardcoded charges.
   const charges = chargesFrom(ride?.fareBreakdown);
-  const grandTotal = ride?.amount ?? ride?.fareBreakdown?.finalFare ?? null;
+  // In-transit medical expenses logged by the control room, billed on top.
+  const expenses = ride?.inTransitExpenses ?? [];
+  const ambulanceTotal = ride?.amount ?? ride?.fareBreakdown?.finalFare ?? null;
+  const grandTotal = ride?.grandTotal ?? ambulanceTotal;
   const totalLabel = grandTotal != null ? `₹${money(grandTotal)}` : null;
+  const paid = ride?.paymentStatus === 'PAID';
+
+  const onPay = async () => {
+    if (!ride?.bookingId || paying || paid) return;
+    setPaying(true);
+    try {
+      await ambulanceApi.pay(ride.bookingId);
+      await rideStore.loadActive();
+    } catch {
+      // Mock gateway — failures are non-fatal; the crew can still collect cash.
+    } finally {
+      setPaying(false);
+    }
+  };
 
   // A real ambulance is only "assigned" once a driver + vehicle are attached.
   // Until then we must NOT show the (dummy-looking) tracking map/driver card —
@@ -280,14 +302,20 @@ export const TrackingScreen: React.FC = () => {
           <View style={styles.payRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.payTitle}>
-                {totalLabel ? `Payment of ${totalLabel} pending` : 'Fare will be confirmed on assignment'}
+                {paid
+                  ? `Paid${totalLabel ? ` ${totalLabel}` : ''}`
+                  : totalLabel
+                    ? `Payment of ${totalLabel} pending`
+                    : 'Fare will be confirmed on assignment'}
               </Text>
-              <Text style={styles.paySub}>Pay now, or pay the crew using Cash/UPI</Text>
+              <Text style={styles.paySub}>
+                {paid ? 'Payment received. Thank you.' : 'Pay now, or pay the crew using Cash/UPI'}
+              </Text>
             </View>
-            {!expanded && totalLabel && (
-              <View style={styles.miniChip}>
-                <Text style={styles.miniChipText}>Pay Now</Text>
-              </View>
+            {!expanded && totalLabel && !paid && (
+              <Pressable style={styles.miniChip} onPress={onPay} disabled={paying}>
+                <Text style={styles.miniChipText}>{paying ? 'Paying…' : 'Pay Now'}</Text>
+              </Pressable>
             )}
           </View>
 
@@ -319,6 +347,23 @@ export const TrackingScreen: React.FC = () => {
                   </View>
                 ))
               )}
+
+              {/* In-transit medical expenses — shown as a separate section. */}
+              {expenses.length > 0 && (
+                <>
+                  <Text style={styles.sectionHeader}>In-Transit Medical Expense</Text>
+                  {expenses.map((e, i) => (
+                    <View key={`${e.item}-${i}`} style={styles.chargeRow}>
+                      <Text style={styles.chargeLabel}>{e.item}</Text>
+                      <Text style={styles.chargeAmount}>
+                        {`${e.qty} x ${money(e.rate)}    `}
+                        {money(e.amount)}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+
               <View style={[styles.chargeRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Grand Total</Text>
                 <Text style={styles.totalAmount}>{totalLabel ?? '—'}</Text>
@@ -327,8 +372,8 @@ export const TrackingScreen: React.FC = () => {
           )}
 
           {expanded && totalLabel && (
-            <Pressable style={styles.payNow} onPress={() => {}}>
-              <Text style={styles.payNowText}>Pay {totalLabel}</Text>
+            <Pressable style={[styles.payNow, paid && styles.payNowPaid]} onPress={onPay} disabled={paying || paid}>
+              <Text style={styles.payNowText}>{paid ? 'Paid' : paying ? 'Paying…' : `Pay ${totalLabel}`}</Text>
             </Pressable>
           )}
         </View>
@@ -584,6 +629,13 @@ const styles = StyleSheet.create({
     color: colors.textBlack,
     marginBottom: verticalScale(16),
   },
+  sectionHeader: {
+    fontFamily: fonts.bold,
+    fontSize: scale(16),
+    color: colors.textBlack,
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(4),
+  },
   chargeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -623,6 +675,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: verticalScale(18),
     marginBottom: verticalScale(8),
+  },
+  payNowPaid: {
+    backgroundColor: colors.inkMuted,
   },
   payNowText: {
     fontFamily: fonts.bold,
