@@ -53,6 +53,8 @@ export type RootStackParamList = {
   Payment: { amount: number; title?: string; purpose?: 'wallet' | 'generic' };
   LabTests: undefined;
   MedicalRecords: undefined;
+  HospitalRecords: undefined;
+  BookAppointment: undefined;
   DoctorList: undefined;
   DoctorDetail: { id: string };
   PharmacyHome: undefined;
