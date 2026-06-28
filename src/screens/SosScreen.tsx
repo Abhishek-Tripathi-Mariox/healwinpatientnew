@@ -11,6 +11,7 @@ import { useProfile } from '../state/profileStore';
 import { rideStore } from '../state/rideStore';
 import { socketService } from '../services/socket';
 import { getCurrentLocation } from '../services/geo';
+import { onlyDigits } from '../utils/validation';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -253,7 +254,7 @@ export const SosScreen: React.FC = () => {
         </View>
 
         <Field label="Name *" value={name} onChangeText={setName} placeholder="Your name" />
-        <Field label="Phone *" value={phone} onChangeText={setPhone} placeholder="10-digit mobile" keyboardType="number-pad" maxLength={10} />
+        <Field label="Phone *" value={phone} onChangeText={(t) => setPhone(onlyDigits(t))} placeholder="10-digit mobile" keyboardType="number-pad" maxLength={10} />
         <Field label="No. of People" value={people} onChangeText={setPeople} placeholder="e.g. 1" keyboardType="number-pad" maxLength={3} />
 
         <Text style={styles.label}>Describe the emergency…</Text>

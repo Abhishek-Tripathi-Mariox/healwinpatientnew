@@ -34,12 +34,17 @@ export const PlanAmbulanceScreen: React.FC = () => {
   const pickup = useDraftPickup();
   const drop = useDraftDrop();
   const [resolving, setResolving] = useState<string | null>(null);
+  // The user has chosen a pickup once they pick a real address OR opt for live
+  // GPS — then the bottom button becomes "Continue" instead of "search/map".
+  const [useGps, setUseGps] = useState(false);
+  const canContinue = !!pickup?.address || useGps;
 
   // Saved addresses are stored as text only (no coordinates). When one is
   // chosen for pickup we forward-geocode it so the map + live distance work —
   // otherwise the pickup has no position and nothing shows on the map.
   const pickSavedAddress = async (a: Address) => {
     const text = formatAddress(a);
+    setUseGps(false);
     bookingDraftStore.setPickup({ address: text }); // show immediately
     setResolving(a.id);
     try {
@@ -152,7 +157,10 @@ export const PlanAmbulanceScreen: React.FC = () => {
             title="Use current location"
             address="Pick up where you are right now (GPS)"
             divider={addresses.length > 0}
-            onPress={() => bookingDraftStore.setPickup(null)}
+            onPress={() => {
+              bookingDraftStore.setPickup(null);
+              setUseGps(true);
+            }}
           />
           {addresses.map((a, i) => (
             <AddressRow
@@ -178,10 +186,14 @@ export const PlanAmbulanceScreen: React.FC = () => {
       {/* Bottom button */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + verticalScale(10) }]}>
         <Pressable
-          onPress={() => navigation.navigate('PlanAmbulanceMap', { mode: 'pickup', next: 'select' })}
+          onPress={() =>
+            canContinue
+              ? navigation.navigate('SelectAmbulance')
+              : navigation.navigate('PlanAmbulanceMap', { mode: 'pickup', next: 'select' })
+          }
           style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
         >
-          <Text style={styles.ctaText}>Search address or set on map</Text>
+          <Text style={styles.ctaText}>{canContinue ? 'Continue' : 'Search address or set on map'}</Text>
         </Pressable>
       </View>
 

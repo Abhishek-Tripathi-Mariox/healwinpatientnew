@@ -8,6 +8,7 @@ import { BackButton } from '../../components';
 import { colors, fonts, scale, spacing, verticalScale } from '../../theme';
 import { authApi } from '../../api/auth';
 import { authStore } from '../../state/authStore';
+import { isValidName, NAME_ERROR } from '../../utils/validation';
 import type { RootStackParamList } from '../../navigation/types';
 
 const GENDERS = ['Male', 'Female', 'Other'];
@@ -25,8 +26,8 @@ export const SignupScreen: React.FC = () => {
 
   const save = async () => {
     if (loading) return;
-    if (!name.trim()) {
-      setError('Please enter your name.');
+    if (!isValidName(name)) {
+      setError(NAME_ERROR);
       return;
     }
     setError('');

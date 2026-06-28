@@ -11,6 +11,7 @@ import { svgs } from '../svgAssets';
 import { profileStore, useProfile } from '../state/profileStore';
 import { authApi } from '../api/auth';
 import { authStore } from '../state/authStore';
+import { onlyDigits, isValidName, NAME_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -56,6 +57,10 @@ export const EditProfileFormScreen: React.FC = () => {
 
   const onSave = async () => {
     if (saving) return;
+    if (!isValidName(form.name)) {
+      setError(NAME_ERROR);
+      return;
+    }
     setError('');
     setSaving(true);
     // Optimistic local update so the UI reflects edits immediately.
@@ -141,7 +146,7 @@ export const EditProfileFormScreen: React.FC = () => {
           </Field>
 
           <Field label="Phone">
-            <TextInput value={form.phone} onChangeText={set('phone')} placeholder="Phone" placeholderTextColor={colors.placeholder} keyboardType="phone-pad" style={styles.input} />
+            <TextInput value={form.phone} onChangeText={(t) => set('phone')(onlyDigits(t))} placeholder="Phone" placeholderTextColor={colors.placeholder} keyboardType="number-pad" maxLength={10} style={styles.input} />
           </Field>
 
           <Field label="Email">

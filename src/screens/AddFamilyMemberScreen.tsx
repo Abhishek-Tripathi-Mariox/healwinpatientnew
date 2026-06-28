@@ -9,6 +9,7 @@ import { BackButton } from '../components';
 import { EditIcon } from '../components/icons';
 import { svgs } from '../svgAssets';
 import { familyStore, PickedImage } from '../state/familyStore';
+import { onlyDigits, isValidName, NAME_ERROR, isValidMobile, MOBILE_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -53,12 +54,16 @@ export const AddFamilyMemberScreen: React.FC = () => {
 
   const onSave = async () => {
     if (saving) return;
-    if (!name.trim() || !relation) {
-      setError('Full name and relation are required.');
+    if (!isValidName(name)) {
+      setError(NAME_ERROR);
       return;
     }
-    if (phone && phone.replace(/\D/g, '').length !== 10) {
-      setError('Phone must be 10 digits.');
+    if (!relation) {
+      setError('Please select a relation.');
+      return;
+    }
+    if (phone && !isValidMobile(phone)) {
+      setError(MOBILE_ERROR);
       return;
     }
     setError('');
@@ -139,7 +144,7 @@ export const AddFamilyMemberScreen: React.FC = () => {
           <Field label="Phone">
             <TextInput
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(t) => setPhone(onlyDigits(t))}
               placeholder="10-digit mobile number"
               placeholderTextColor={colors.placeholder}
               keyboardType="number-pad"

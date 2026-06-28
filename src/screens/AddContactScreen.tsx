@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { BackButton } from '../components';
 import { contactsStore } from '../state/contactsStore';
+import { onlyDigits, isValidName, NAME_ERROR, isValidMobile, MOBILE_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -30,12 +31,12 @@ export const AddContactScreen: React.FC = () => {
 
   const onSave = async () => {
     if (saving) return;
-    if (!name.trim()) {
-      setError('Name is required.');
+    if (!isValidName(name)) {
+      setError(NAME_ERROR);
       return;
     }
-    if (phone.replace(/\D/g, '').length !== 10) {
-      setError('Phone must be 10 digits.');
+    if (!isValidMobile(phone)) {
+      setError(MOBILE_ERROR);
       return;
     }
     setError('');
@@ -86,7 +87,7 @@ export const AddContactScreen: React.FC = () => {
         <Text style={styles.label}>Phone</Text>
         <TextInput
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={(t) => setPhone(onlyDigits(t))}
           placeholder="10-digit mobile number"
           placeholderTextColor={colors.placeholder}
           keyboardType="number-pad"
