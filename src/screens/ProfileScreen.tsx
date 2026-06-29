@@ -87,6 +87,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Safety & Support',
     rows: [
+      { key: 'firstaid', label: 'First Aid & Emergency Guides', Icon: ShieldCheckIcon, route: 'FirstAid' },
       { key: 'emergency', label: 'Emergency Contacts', Icon: ShieldCheckIcon, route: 'EmergencyContacts' },
       { key: 'notifications', label: 'Notifications', Icon: BookingIcon, route: 'Notifications' },
       { key: 'support', label: 'Help & Support', Icon: HelpIcon, route: 'Support' },

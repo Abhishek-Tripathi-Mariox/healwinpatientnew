@@ -55,6 +55,7 @@ export type RootStackParamList = {
   MedicalRecords: undefined;
   HospitalRecords: undefined;
   BookAppointment: undefined;
+  FirstAid: undefined;
   DoctorList: undefined;
   DoctorDetail: { id: string };
   PharmacyHome: undefined;

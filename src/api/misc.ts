@@ -19,6 +19,24 @@ export const homeApi = {
     ),
 };
 
+export interface FirstAidGuide {
+  _id: string;
+  title: string;
+  category?: string;
+  type: 'video' | 'article';
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  content?: string | null;
+  durationLabel?: string | null;
+}
+
+export const firstAidApi = {
+  list: () =>
+    api.get<any>('/patient/first-aid', undefined, false).then((d) =>
+      (Array.isArray(d) ? d : d?.items ?? []) as FirstAidGuide[],
+    ),
+};
+
 export interface ServerMembershipPlan {
   _id: string;
   tier: 'silver' | 'gold';
