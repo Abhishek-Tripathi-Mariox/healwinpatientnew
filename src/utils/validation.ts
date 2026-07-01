@@ -19,3 +19,21 @@ export const NAME_ERROR = 'Enter a valid name (letters only, at least 2 characte
 export const isValidMobile = (s: string): boolean => /^[6-9]\d{9}$/.test(onlyDigits(s));
 
 export const MOBILE_ERROR = 'Enter a valid 10-digit mobile number (starting 6-9).';
+
+/**
+ * Format a phone for display as "+<cc> <10 digits>". Robust to:
+ *  - country code with/without "+",
+ *  - a mobile number that ALREADY embeds the country code (avoids "+9191…"),
+ *  - missing country code (defaults to +91).
+ */
+export const formatPhone = (countryCode?: string | null, mobile?: string | null): string => {
+  const mob = onlyDigits(String(mobile || ''), 20);
+  if (!mob) return '';
+  let code = String(countryCode || '').replace(/\D/g, '');
+  let digits = mob;
+  // Strip an embedded country-code prefix so we don't show it twice.
+  if (code && digits.length > 10 && digits.startsWith(code)) digits = digits.slice(code.length);
+  const local = digits.slice(-10);
+  if (!code) code = '91';
+  return `+${code} ${local}`;
+};

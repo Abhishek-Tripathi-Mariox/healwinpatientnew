@@ -133,6 +133,28 @@ export const TrackingScreen: React.FC = () => {
   const otp = ride?.otp || '----';
   const pickupAddr = ride?.pickup?.address || 'Your location';
 
+  // Status-aware header + chip so the screen reflects the real trip stage
+  // instead of always reading "Ambulance is on the way". Covers both ambulance
+  // requests (arrived/on_trip/completed) and SOS dispatches (on_scene/etc).
+  const statusKey = (ride?.status || '').toLowerCase();
+  const isCompleted = statusKey === 'completed';
+  const isOnTrip = statusKey === 'on_trip';
+  const hasArrived = statusKey === 'arrived' || statusKey === 'on_scene';
+  const headerTitle = isCompleted
+    ? 'Trip completed'
+    : isOnTrip
+      ? 'On the way to hospital'
+      : hasArrived
+        ? 'Ambulance has arrived'
+        : 'Ambulance is on the way';
+  const statusChipText = isCompleted
+    ? '✅ Trip completed'
+    : isOnTrip
+      ? 'En route to hospital'
+      : hasArrived
+        ? 'Ambulance has arrived — share OTP'
+        : etaLabel;
+
   // Real, server-computed fare. No hardcoded charges.
   const charges = chargesFrom(ride?.fareBreakdown);
   // In-transit medical expenses logged by the control room, billed on top.
@@ -204,7 +226,7 @@ export const TrackingScreen: React.FC = () => {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + verticalScale(8) }]}>
           <BackButton onPress={() => navigation.goBack()} />
-          <Text style={styles.title}>Ambulance is on the way</Text>
+          <Text style={styles.title}>{headerTitle}</Text>
         </View>
 
         {/* Live map: real ambulance + pickup markers, camera follows movement. */}
@@ -247,7 +269,7 @@ export const TrackingScreen: React.FC = () => {
           {/* Status chip */}
           <View style={styles.statusWrap}>
             <View style={[styles.statusChip, cardShadow]}>
-              <Text style={styles.statusText}>{etaLabel}</Text>
+              <Text style={styles.statusText}>{statusChipText}</Text>
             </View>
             <Pressable
               style={[styles.refreshBtn, cardShadow]}
@@ -376,6 +398,20 @@ export const TrackingScreen: React.FC = () => {
               <Text style={styles.payNowText}>{paid ? 'Paid' : paying ? 'Paying…' : `Pay ${totalLabel}`}</Text>
             </Pressable>
           )}
+
+          {/* Trip finished — let the patient dismiss the completed trip so the
+              tracking screen doesn't linger. */}
+          {isCompleted && (
+            <Pressable
+              style={styles.doneBtn}
+              onPress={() => {
+                rideStore.clear();
+                navigation.goBack();
+              }}
+            >
+              <Text style={styles.doneBtnText}>Done</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -389,6 +425,11 @@ const styles = StyleSheet.create({
     width: scale(96), height: scale(96), borderRadius: scale(48),
     backgroundColor: colors.avatarCircle, alignItems: 'center', justifyContent: 'center',
   },
+  doneBtn: {
+    marginTop: verticalScale(12), height: verticalScale(50), borderRadius: scale(12),
+    backgroundColor: colors.payGreen, alignItems: 'center', justifyContent: 'center',
+  },
+  doneBtnText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },
   waitTitle: { fontFamily: fonts.bold, fontSize: scale(18), color: colors.textBlack, textAlign: 'center' },
   waitSub: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.inkMuted, textAlign: 'center', lineHeight: scale(19) },
   waitBtn: {

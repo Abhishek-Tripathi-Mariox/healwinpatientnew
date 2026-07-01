@@ -3,6 +3,7 @@ import { authApi, UserProfile } from '../api/auth';
 import { setOnUnauthorized } from '../api/client';
 import { storage } from '../api/storage';
 import { profileStore } from './profileStore';
+import { formatPhone } from '../utils/validation';
 import { initPush, teardownPush } from '../services/push';
 import { socketService } from '../services/socket';
 import { rideStore } from './rideStore';
@@ -51,7 +52,7 @@ const syncProfileStore = (p: UserProfile | null) => {
     age: p.age || '',
     idType: p.idType || '',
     idNumber: p.idNumber || '',
-    phone: p.mobileNumber ? `${p.countryCode || ''}${p.mobileNumber}` : '',
+    phone: formatPhone(p.countryCode, p.mobileNumber),
     photo: p.profileImage || '',
   });
 };

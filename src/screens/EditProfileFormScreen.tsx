@@ -11,7 +11,7 @@ import { svgs } from '../svgAssets';
 import { profileStore, useProfile } from '../state/profileStore';
 import { authApi } from '../api/auth';
 import { authStore } from '../state/authStore';
-import { onlyDigits, isValidName, NAME_ERROR } from '../utils/validation';
+import { isValidName, NAME_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -145,8 +145,11 @@ export const EditProfileFormScreen: React.FC = () => {
             <TextInput value={form.idNumber} onChangeText={set('idNumber')} placeholder="ID number" placeholderTextColor={colors.placeholder} style={styles.input} />
           </Field>
 
-          <Field label="Phone">
-            <TextInput value={form.phone} onChangeText={(t) => set('phone')(onlyDigits(t))} placeholder="Phone" placeholderTextColor={colors.placeholder} keyboardType="number-pad" maxLength={10} style={styles.input} />
+          {/* Phone is the login identity (verified by OTP) — shown read-only so
+              the number always displays correctly and can't be silently edited
+              (changing the login number needs OTP re-verification). */}
+          <Field label="Phone (login number)">
+            <TextInput value={form.phone} editable={false} placeholder="Phone" placeholderTextColor={colors.placeholder} style={[styles.input, { color: colors.inkMuted }]} />
           </Field>
 
           <Field label="Email">

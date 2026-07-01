@@ -47,7 +47,9 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'MyCredits'>;
 export const MyCreditsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const [amount, setAmount] = useState('');
+  // Prefill the amount to match the pre-selected quick chip (₹200) so "Add Money"
+  // works on first tap without re-entering it.
+  const [amount, setAmount] = useState('200');
   const [selected, setSelected] = useState<number | null>(200);
   const [balance, setBalance] = useState<number | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);

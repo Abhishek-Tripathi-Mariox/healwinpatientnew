@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { Fab, FileCard } from '../components';
+import { Fab, FileCard, ScreenHeader } from '../components';
 import { SearchIcon } from '../components/icons';
 import { recordsApi } from '../api/catalog';
 import { useRecordViewer } from '../hooks/useRecordViewer';
@@ -49,7 +49,8 @@ export const DocumentsScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <View style={{ paddingTop: insets.top + verticalScale(8) }}>
+      <ScreenHeader title="My Documents" onBack={() => navigation.goBack()} />
+      <View>
         {/* Search */}
         <View style={styles.searchRow}>
           <View style={[styles.search, cardShadow]}>
