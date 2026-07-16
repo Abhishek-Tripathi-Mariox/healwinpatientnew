@@ -18,7 +18,7 @@ import { colors, scale, screen, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type PlanCardData =
-  | { tier: 'silver' | 'gold'; bullets: string[] }
+  | { tier: 'silver' | 'gold'; name?: string; priceLabel?: string; bullets: string[] }
   | { tier: 'gold' | 'silver'; info: { label: string; value: string }[] };
 
 const fmtDate = (iso?: string) =>
@@ -51,7 +51,18 @@ export const MembershipScreen: React.FC = () => {
           membershipApi.active().catch(() => null),
         ]);
         if (!alive) return;
-        const cards: PlanCardData[] = planList.map((p) => ({ tier: p.tier, bullets: p.bullets || [] }));
+        const cards: PlanCardData[] = planList.map((p) => ({
+          tier: p.tier,
+          name: p.name,
+          // Real price line from the admin plan (₹ / months, + concession).
+          priceLabel:
+            p.price != null
+              ? `₹${p.price}${p.durationMonths ? ` / ${p.durationMonths} mo` : ''}${
+                  p.concessionPercent ? ` · ${p.concessionPercent}% off` : ''
+                }`
+              : undefined,
+          bullets: p.bullets || [],
+        }));
         if (active) {
           cards.push({
             tier: active.tier,
@@ -101,6 +112,8 @@ export const MembershipScreen: React.FC = () => {
             <PlanCard
               key={i}
               tier={p.tier}
+              name={'name' in p ? p.name : undefined}
+              priceLabel={'priceLabel' in p ? p.priceLabel : undefined}
               bullets={'bullets' in p ? p.bullets : undefined}
               info={'info' in p ? p.info : undefined}
               style={{ width: CARD_W, marginRight: i < plans.length - 1 ? spacing.md : 0 }}

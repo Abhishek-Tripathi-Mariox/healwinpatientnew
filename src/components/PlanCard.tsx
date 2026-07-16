@@ -6,6 +6,10 @@ import { cardShadow } from '../theme/shadows';
 
 export interface PlanCardProps {
   tier: 'silver' | 'gold';
+  /** Plan name/title (e.g. "Gold Care"). */
+  name?: string;
+  /** Price line (e.g. "₹999 / 12 mo"). */
+  priceLabel?: string;
   /** Benefit bullet points (benefits variant). */
   bullets?: string[];
   /** Key/value info lines (active-plan variant). */
@@ -17,7 +21,7 @@ export interface PlanCardProps {
  * HealWin membership plan card — bullet benefits OR active-plan info, with a
  * silver/gold shield badge on the right. (Figma 5:1345 / 5:1370 / 5:1395.)
  */
-export const PlanCard: React.FC<PlanCardProps> = ({ tier, bullets, info, style }) => {
+export const PlanCard: React.FC<PlanCardProps> = ({ tier, name, priceLabel, bullets, info, style }) => {
   const shield =
     tier === 'gold'
       ? { color: colors.shieldGold, light: colors.shieldGoldLight }
@@ -26,6 +30,8 @@ export const PlanCard: React.FC<PlanCardProps> = ({ tier, bullets, info, style }
   return (
     <View style={[styles.card, cardShadow, style]}>
       <View style={styles.body}>
+        {!!name && <Text style={styles.name}>{name}</Text>}
+        {!!priceLabel && <Text style={styles.price}>{priceLabel}</Text>}
         {bullets?.map((b, i) => (
           <View key={i} style={styles.bulletRow}>
             <Text style={styles.dot}>{'•'}</Text>
@@ -58,6 +64,18 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingRight: scale(8),
+  },
+  name: {
+    fontFamily: fonts.bold,
+    fontSize: scale(16),
+    color: colors.textBlack,
+    marginBottom: verticalScale(2),
+  },
+  price: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(13),
+    color: colors.brandRed,
+    marginBottom: verticalScale(8),
   },
   bulletRow: {
     flexDirection: 'row',

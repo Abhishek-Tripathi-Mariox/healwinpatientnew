@@ -192,7 +192,10 @@ export const TrackingScreen: React.FC = () => {
       <View style={styles.root}>
         <View style={[styles.header, { paddingTop: insets.top + verticalScale(8) }]}>
           <BackButton onPress={() => navigation.goBack()} />
-          <Text style={styles.title}>Finding an ambulance</Text>
+          {/* Header must match the state: only say "Finding an ambulance" while a
+              request is actually searching — not on the empty "no active request"
+              screen (that contradiction is what looked wrong after a trip). */}
+          <Text style={styles.title}>{ride ? 'Finding an ambulance' : 'Tracking'}</Text>
         </View>
         <View style={styles.waitWrap}>
           <View style={styles.pulse}>
@@ -399,14 +402,14 @@ export const TrackingScreen: React.FC = () => {
             </Pressable>
           )}
 
-          {/* Trip finished — let the patient dismiss the completed trip so the
-              tracking screen doesn't linger. */}
+          {/* Trip finished — clear the ride and take the customer back to Home
+              (reset the stack so they can't navigate back into the ended trip). */}
           {isCompleted && (
             <Pressable
               style={styles.doneBtn}
               onPress={() => {
                 rideStore.clear();
-                navigation.goBack();
+                navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
               }}
             >
               <Text style={styles.doneBtnText}>Done</Text>

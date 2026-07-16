@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +26,11 @@ export const PharmacyCartScreen: React.FC = () => {
   const [placing, setPlacing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [prescriptionUrl, setPrescriptionUrl] = useState<string | null>(null);
+  // Which saved address this order delivers to — defaults to the primary, but
+  // the user can pick any of their saved addresses before placing the order.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const selected = addresses.find((a) => a.id === selectedId) ?? def;
 
   const pickPrescription = async () => {
     const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }).catch(() => null);
@@ -50,7 +55,7 @@ export const PharmacyCartScreen: React.FC = () => {
     try {
       await pharmacyApi.createOrder({
         items: items.map((i) => ({ productId: i.product.id, qty: i.quantity })),
-        addressId: def?.id,
+        addressId: selected?.id,
         ...(prescriptionUrl ? { prescriptionUrl } : {}),
       });
       cartStore.clear?.();
@@ -97,11 +102,21 @@ export const PharmacyCartScreen: React.FC = () => {
           </View>
         ))}
 
-        <Text style={styles.section}>Delivery address</Text>
-        <Pressable style={[styles.addr, cardShadow]} onPress={() => navigation.navigate('AddressList')}>
+        <View style={styles.addrHeader}>
+          <Text style={styles.section}>Delivery address</Text>
+          {addresses.length > 0 && (
+            <Pressable onPress={() => setPickerOpen(true)} hitSlop={8}>
+              <Text style={styles.changeLink}>Change</Text>
+            </Pressable>
+          )}
+        </View>
+        <Pressable
+          style={[styles.addr, cardShadow]}
+          onPress={() => (addresses.length > 0 ? setPickerOpen(true) : navigation.navigate('AddressList'))}
+        >
           <MapPinIcon size={scale(20)} />
           <Text style={styles.addrText} numberOfLines={2}>
-            {def ? `${def.line1}, ${def.city}, ${def.state} - ${def.pincode}` : 'Add new address'}
+            {selected ? `${selected.line1}, ${selected.city}, ${selected.state} - ${selected.pincode}` : 'Add new address'}
           </Text>
         </Pressable>
 
@@ -122,6 +137,43 @@ export const PharmacyCartScreen: React.FC = () => {
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Delivery-address picker — choose which saved address this order goes to. */}
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setPickerOpen(false)}>
+          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + verticalScale(16) }]} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>Deliver to</Text>
+            <ScrollView style={{ maxHeight: verticalScale(320) }}>
+              {addresses.map((a) => {
+                const active = (selected?.id ?? def?.id) === a.id;
+                return (
+                  <Pressable
+                    key={a.id}
+                    style={[styles.pickRow, active && styles.pickRowActive]}
+                    onPress={() => { setSelectedId(a.id); setPickerOpen(false); }}
+                  >
+                    <View style={[styles.radio, active && styles.radioOn]}>
+                      {active && <View style={styles.radioDot} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {!!a.addressType && <Text style={styles.pickLabel}>{a.addressType}</Text>}
+                      <Text style={styles.pickText} numberOfLines={2}>
+                        {`${a.line1}, ${a.city}, ${a.state} - ${a.pincode}`}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable
+              style={styles.addNewBtn}
+              onPress={() => { setPickerOpen(false); navigation.navigate('AddressList'); }}
+            >
+              <Text style={styles.addNewText}>+ Add / manage addresses</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + verticalScale(10) }]}>
         <Text style={styles.barTotal}>₹{total}</Text>
@@ -149,6 +201,20 @@ const styles = StyleSheet.create({
   qty: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.textWhite, minWidth: scale(14), textAlign: 'center' },
   addr: { flexDirection: 'row', alignItems: 'center', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16) },
   addrText: { flex: 1, fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
+  addrHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  changeLink: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.directionsBlue, marginTop: verticalScale(20) },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.background, borderTopLeftRadius: scale(20), borderTopRightRadius: scale(20), paddingHorizontal: spacing.lg, paddingTop: verticalScale(16) },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textBlack, marginBottom: verticalScale(12) },
+  pickRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), paddingVertical: verticalScale(12), paddingHorizontal: scale(12), borderRadius: scale(12), backgroundColor: colors.surface, marginBottom: verticalScale(10) },
+  pickRowActive: { borderWidth: 1.5, borderColor: colors.directionsBlue },
+  radio: { width: scale(20), height: scale(20), borderRadius: scale(10), borderWidth: 2, borderColor: colors.metaGray, alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: colors.directionsBlue },
+  radioDot: { width: scale(10), height: scale(10), borderRadius: scale(5), backgroundColor: colors.directionsBlue },
+  pickLabel: { fontFamily: fonts.semiBold, fontSize: scale(12), color: colors.directionsBlue, marginBottom: verticalScale(2) },
+  pickText: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
+  addNewBtn: { marginTop: verticalScale(6), height: verticalScale(48), borderRadius: scale(12), borderWidth: 1, borderColor: colors.directionsBlue, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  addNewText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.directionsBlue },
   upload: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(12), height: verticalScale(55), borderRadius: scale(12), borderWidth: 1, borderColor: colors.dashBorder, borderStyle: 'dashed', backgroundColor: colors.dashBg },
   uploadDone: { borderColor: colors.creditGreen, borderStyle: 'solid', backgroundColor: '#F0F8F0' },
   uploadText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textBlack },

@@ -3,7 +3,7 @@
  * @format
  */
 import React, { useEffect, useState } from 'react';
-import { Alert, StatusBar } from 'react-native';
+import { StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
@@ -11,9 +11,16 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { authStore } from './src/state/authStore';
 import { initPush, subscribeForeground, setPushNavigator } from './src/services/push';
+import { InAppBanner, BannerData } from './src/components/InAppBanner';
 import { NAV_STATE_KEY } from './src/api/storage';
 import type { RootStackParamList } from './src/navigation/types';
 import { colors } from './src/theme';
+
+const NAV_TARGETS = new Set(['MyOrders', 'Tracking', 'Bookings', 'Home', 'Notifications', 'MyCredits', 'Membership', 'TicketDetail']);
+const routeFromData = (data?: Record<string, any>): keyof RootStackParamList => {
+  const s = (data?.screen || data?.route) as string | undefined;
+  return (s && NAV_TARGETS.has(s) ? s : 'Notifications') as keyof RootStackParamList;
+};
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -22,6 +29,7 @@ function App(): React.JSX.Element {
   // user to the exact screen they were on (point: "jis page pr hain usi pr rahe").
   const [navReady, setNavReady] = useState(false);
   const [initialState, setInitialState] = useState<any>(undefined);
+  const [banner, setBanner] = useState<BannerData | null>(null);
 
   useEffect(() => {
     void authStore.bootstrap();
@@ -32,8 +40,9 @@ function App(): React.JSX.Element {
       const screen = (data?.screen as keyof RootStackParamList) || 'Notifications';
       if (navigationRef.isReady()) (navigationRef.navigate as any)(screen, data);
     });
-    const unsub = subscribeForeground((title, body) => {
-      if (title || body) Alert.alert(title, body);
+    // Foreground push → branded in-app banner (not a plain OS Alert).
+    const unsub = subscribeForeground((title, body, data) => {
+      if (title || body) setBanner({ title, body, data });
     });
 
     (async () => {
@@ -64,6 +73,16 @@ function App(): React.JSX.Element {
       >
         <RootNavigator />
       </NavigationContainer>
+      <InAppBanner
+        notif={banner}
+        onDismiss={() => setBanner(null)}
+        onPress={(data) => {
+          setBanner(null);
+          if (navigationRef.isReady()) {
+            (navigationRef.navigate as any)(routeFromData(data), data);
+          }
+        }}
+      />
     </SafeAreaProvider>
   );
 }
