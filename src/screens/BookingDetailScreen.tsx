@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Video from 'react-native-video';
 
 import { ScreenHeader } from '../components';
 import { bookingsApi, toUiBooking, UiBooking, timelineLabel, fmtTimelineTime } from '../api/bookings';
@@ -33,6 +35,7 @@ export const BookingDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [ratingBusy, setRatingBusy] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   // Reverse-geocoded place names for older bookings whose pickup/drop were saved
   // as raw "Pinned location (lat, lng)" labels — keyed by the original label.
   const [resolvedAddr, setResolvedAddr] = useState<Record<string, string>>({});
@@ -44,7 +47,7 @@ export const BookingDetailScreen: React.FC = () => {
       const updated = await bookingsApi.rate(booking.id, stars);
       setBooking(toUiBooking(updated as any));
     } catch (e: any) {
-      Alert.alert('Could not submit rating', e?.message || 'Please try again.');
+      AppAlert.alert('Could not submit rating', e?.message || 'Please try again.');
     } finally {
       setRatingBusy(false);
     }
@@ -131,7 +134,12 @@ export const BookingDetailScreen: React.FC = () => {
     ['Status', booking.status[0].toUpperCase() + booking.status.slice(1)],
   ];
 
-  const payable = cancelled ? booking.cancellationCharge : booking.amount;
+  // Once the trip is completed, the fare is recomputed from the actual route
+  // driven (dispatch point → pickup → hospital) — prefer that once present.
+  const finalFareAmount = booking.actualFareAmount ?? null;
+  const displayAmount = finalFareAmount ?? booking.amount;
+  const media = booking.patientMedia;
+  const payable = cancelled ? booking.cancellationCharge : displayAmount;
 
   // Patient can cancel an in-progress booking (not completed/cancelled).
   const canCancel = !cancelled && booking.rawStatus !== 'completed';
@@ -139,7 +147,7 @@ export const BookingDetailScreen: React.FC = () => {
 
   const onCancel = () => {
     if (cancelling || !booking) return;
-    Alert.alert(
+    AppAlert.alert(
       'Cancel booking?',
       willCharge
         ? 'An ambulance is already assigned, so a cancellation charge will apply.'
@@ -156,10 +164,10 @@ export const BookingDetailScreen: React.FC = () => {
               const ui = toUiBooking(updated as any);
               setBooking(ui);
               if (ui.cancellationCharge > 0) {
-                Alert.alert('Booking cancelled', `A cancellation charge of ₹${ui.cancellationCharge} applies.`);
+                AppAlert.alert('Booking cancelled', `A cancellation charge of ₹${ui.cancellationCharge} applies.`);
               }
             } catch {
-              Alert.alert('Could not cancel', 'Please try again.');
+              AppAlert.alert('Could not cancel', 'Please try again.');
             } finally {
               setCancelling(false);
             }
@@ -197,9 +205,16 @@ export const BookingDetailScreen: React.FC = () => {
             </>
           )}
           <View style={styles.row}>
-            <Text style={styles.totalK}>{cancelled ? 'Trip fare' : 'Amount'}</Text>
-            <Text style={[styles.totalV, cancelled && styles.struck]}>₹{booking.amount}</Text>
+            <Text style={styles.totalK}>
+              {cancelled ? 'Trip fare' : finalFareAmount != null ? 'Final Amount (actual route)' : 'Amount'}
+            </Text>
+            <Text style={[styles.totalV, cancelled && styles.struck]}>₹{displayAmount}</Text>
           </View>
+          {!cancelled && finalFareAmount != null && booking.actualDistanceKm != null && (
+            <Text style={styles.sub}>
+              Billed for the full route driven: {booking.actualDistanceKm.toFixed(1)} km
+            </Text>
+          )}
           {cancelled && (
             <View style={styles.row}>
               <Text style={styles.totalK}>Cancellation charge</Text>
@@ -254,6 +269,26 @@ export const BookingDetailScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Patient photos/videos captured by the crew during transport. */}
+        {media.length > 0 && (
+          <View style={[styles.card, styles.cardGap, cardShadow]}>
+            <Text style={styles.sectionTitle}>Patient photos/videos</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {media.map((m, i) => (
+                <Pressable key={m.url} style={styles.mediaThumbWrap} onPress={() => setViewerIndex(i)}>
+                  {m.type === 'video' ? (
+                    <View style={[styles.mediaThumb, styles.videoThumb]}>
+                      <Text style={styles.videoThumbText}>▶</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri: m.url }} style={styles.mediaThumb} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Rate the completed trip */}
         {booking.rawStatus === 'completed' && (
           <View style={[styles.card, styles.cardGap, cardShadow]}>
@@ -295,6 +330,29 @@ export const BookingDetailScreen: React.FC = () => {
           </Pressable>
         )}
       </ScrollView>
+
+      {/* Full-screen patient media viewer */}
+      <Modal
+        visible={viewerIndex != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerIndex(null)}
+      >
+        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerIndex(null)}>
+          {viewerIndex != null && media[viewerIndex] && (
+            media[viewerIndex].type === 'video' ? (
+              <Video
+                source={{ uri: media[viewerIndex].url }}
+                style={styles.viewerMedia}
+                controls
+                resizeMode="contain"
+              />
+            ) : (
+              <Image source={{ uri: media[viewerIndex].url }} style={styles.viewerMedia} resizeMode="contain" />
+            )
+          )}
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -350,4 +408,10 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(12),
   },
   cancelBtnText: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.brandRedDark },
+  mediaThumbWrap: { marginRight: scale(10) },
+  mediaThumb: { width: scale(72), height: scale(72), borderRadius: radius.card, backgroundColor: colors.avatarCircle },
+  videoThumb: { alignItems: 'center', justifyContent: 'center' },
+  videoThumbText: { fontFamily: fonts.bold, fontSize: scale(22), color: colors.textBlack },
+  viewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
+  viewerMedia: { width: '100%', height: '80%' },
 });

@@ -37,6 +37,11 @@ export interface ServerBooking {
   statusHistory?: { status?: string; at?: string; by?: string | null; note?: string | null }[];
   pickup?: { address?: string } | null;
   drop?: { address?: string } | null;
+  // Actual route driven + fare recomputed from it at trip completion.
+  tripDistanceKm?: number | null;
+  actualFareAmount?: number | null;
+  // Photos/videos of the patient captured by the crew during transport.
+  patientMedia?: { url: string; type: 'photo' | 'video'; uploadedAt?: string }[];
 }
 
 export interface TimelineStep {
@@ -87,6 +92,11 @@ export interface UiBooking {
   // Lifecycle timeline.
   timeline: TimelineStep[];
   rating?: number | null;
+  // Actual route driven + fare recomputed from it at trip completion.
+  actualDistanceKm?: number | null;
+  actualFareAmount?: number | null;
+  // Photos/videos of the patient captured by the crew during transport.
+  patientMedia: { url: string; type: 'photo' | 'video'; uploadedAt?: string }[];
 }
 
 const fmtDateTime = (iso?: string | null): string =>
@@ -128,6 +138,9 @@ export const toUiBooking = (b: ServerBooking): UiBooking => ({
       }))
     : [],
   rating: (b as any).rating ?? null,
+  actualDistanceKm: b.tripDistanceKm ?? null,
+  actualFareAmount: b.actualFareAmount ?? null,
+  patientMedia: b.patientMedia ?? [],
 });
 
 /** Human label + date for a timeline step. */

@@ -39,7 +39,27 @@ const toForm = (m: Partial<FamilyMember>, image: PickedImage): FormData => {
   return form;
 };
 
+export interface FamilyOverviewMember {
+  userId: string;
+  fullName: string;
+  phone?: string;
+  isSelf: boolean;
+  isHead: boolean;
+  relation: string | null;
+  billing: { totalBilled: number; totalPaid: number; balanceDue: number; invoiceCount: number };
+  insurance: { hasPolicy: boolean; totalSumInsured: number; totalUsed: number; totalRemaining: number };
+}
+
+export interface FamilyOverview {
+  members: FamilyOverviewMember[];
+  familyTotal: { totalBilled: number; totalPaid: number; balanceDue: number };
+}
+
 export const familyApi = {
+  // Whole family's combined real hospital spend + insurance — only appears
+  // once a family member's own phone has signed up and auto-linked (see
+  // backend user.service.ts#addUsers); until then this is just `[self]`.
+  overview: () => api.get<FamilyOverview>('/patient/family/overview'),
   async list(): Promise<FamilyMember[]> {
     const data = await api.get<ServerMember[] | { items: ServerMember[] }>('/patient/family-members');
     const arr = Array.isArray(data) ? data : data?.items ?? [];

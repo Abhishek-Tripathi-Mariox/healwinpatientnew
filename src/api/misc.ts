@@ -11,12 +11,34 @@ export interface ServerPromo {
   image?: string | null;
 }
 
+export interface HomeShortcut {
+  key: string;
+  label: string;
+  route: string;
+  params?: Record<string, any> | null;
+}
+
+export interface HomeFeed {
+  banners: ServerPromo[];
+  shortcuts: HomeShortcut[];
+  upcoming: {
+    _id: string;
+    type: 'opd_appointment';
+    scheduledAt: string;
+    doctorName: string | null;
+    tokenNumber: number;
+  }[];
+  suggestions: { _id: string; title: string; category: string; thumbnailUrl: string | null }[];
+}
+
 export const homeApi = {
   /** Admin-managed home promo shortcut cards. */
   promos: () =>
     api.get<any>('/patient/home/promos', undefined, false).then((d) =>
       (Array.isArray(d) ? d : d?.items ?? []) as ServerPromo[],
     ),
+  /** Quick-links + this patient's nearest upcoming OPD appointment + a couple of first-aid suggestions. */
+  feed: () => api.get<HomeFeed>('/patient/home/feed'),
 };
 
 export interface FirstAidGuide {

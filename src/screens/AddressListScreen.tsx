@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,7 +28,7 @@ export const AddressListScreen: React.FC = () => {
   );
 
   const onDelete = (a: Address) => {
-    Alert.alert('Delete address', 'Remove this saved address?', [
+    AppAlert.alert('Delete address', 'Remove this saved address?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

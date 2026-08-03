@@ -19,6 +19,7 @@
       android:icon="@mipmap/ic_launcher"
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
+      tools:replace="android:allowBackup"
       android:theme="@style/AppTheme">
       <!-- Google Maps SDK key (react-native-maps). Reuses the project's Google
            API key; the Maps SDK for Android must be enabled on this key in GCP. -->

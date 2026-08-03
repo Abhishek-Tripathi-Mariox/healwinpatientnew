@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -62,10 +63,10 @@ export const DoctorDetailScreen: React.FC = () => {
     setBooking(true);
     try {
       await doctorsApi.book({ doctorId: params.id, date: picked.date, slot: picked.time, teleconsult: true });
-      Alert.alert('Appointment booked', `Your consultation is scheduled for ${picked.label}.`);
+      AppAlert.alert('Appointment booked', `Your consultation is scheduled for ${picked.label}.`);
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Could not book', e?.message || 'Please try again.');
+      AppAlert.alert('Could not book', e?.message || 'Please try again.');
     } finally {
       setBooking(false);
     }

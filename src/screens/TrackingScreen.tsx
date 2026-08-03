@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import MapView, { Marker, Polyline as MapPolyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import Video from 'react-native-video';
 
 import { BackButton } from '../components';
 import { ChevronDownIcon, MapPinIcon, PersonIcon, PhoneIcon, RebookIcon } from '../components/icons';
@@ -51,6 +52,7 @@ export const TrackingScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const ride = useActiveRide();
   const mapRef = useRef<MapView | null>(null);
 
@@ -101,13 +103,19 @@ export const TrackingScreen: React.FC = () => {
     };
   }, [bookingId]);
 
-  // Keep the camera on the live ambulance — and frame the pickup too when we
-  // have both — every time the position updates over the socket.
+  // Keep the camera live on the ambulance. Before pickup, frame both the
+  // ambulance and the pickup point so the patient can gauge how far it still
+  // has to come; once the patient is onboard (ON_TRIP), stop re-including the
+  // now-irrelevant pickup point — that was forcing the camera to zoom out to
+  // fit it as the ambulance drove away, which read as the map not actually
+  // following the ambulance. From ON_TRIP it just follows the ambulance.
   const amb = ride?.ambulance;
   const pickup = ride?.pickup;
+  const drop = ride?.drop;
+  const onTripCam = (ride?.status || '').toLowerCase() === 'on_trip';
   useEffect(() => {
     if (!amb?.lat || !amb?.lng) return;
-    if (pickup?.lat && pickup?.lng) {
+    if (!onTripCam && pickup?.lat && pickup?.lng) {
       mapRef.current?.fitToCoordinates(
         [
           { latitude: amb.lat, longitude: amb.lng },
@@ -117,11 +125,11 @@ export const TrackingScreen: React.FC = () => {
       );
     } else {
       mapRef.current?.animateToRegion(
-        { latitude: amb.lat, longitude: amb.lng, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+        { latitude: amb.lat, longitude: amb.lng, latitudeDelta: 0.015, longitudeDelta: 0.015 },
         600,
       );
     }
-  }, [amb?.lat, amb?.lng, pickup?.lat, pickup?.lng]);
+  }, [amb?.lat, amb?.lng, pickup?.lat, pickup?.lng, onTripCam]);
 
   const distanceLabel = ride?.distanceKm != null ? `${ride.distanceKm} km away` : null;
   const etaLabel =
@@ -130,7 +138,10 @@ export const TrackingScreen: React.FC = () => {
       : 'Locating ambulance…';
   const driverName = ride?.driver || 'Assigning…';
   const plate = ride?.vehicleNumber || '—';
-  const otp = ride?.otp || '----';
+  // SOS dispatches skip the pickup-OTP step (unlike a proper "Book Ambulance"
+  // request) — the backend never mints one for SOS, so hide the row entirely
+  // rather than showing a permanent "----" placeholder.
+  const otp = ride?.otp || null;
   const pickupAddr = ride?.pickup?.address || 'Your location';
 
   // Status-aware header + chip so the screen reflects the real trip stage
@@ -155,14 +166,21 @@ export const TrackingScreen: React.FC = () => {
         ? 'Ambulance has arrived — share OTP'
         : etaLabel;
 
-  // Real, server-computed fare. No hardcoded charges.
-  const charges = chargesFrom(ride?.fareBreakdown);
+  // Once the trip is completed, the fare is recomputed from the actual route
+  // driven (dispatch point → pickup → hospital) — prefer that over the
+  // booking-time estimate everywhere it's available.
+  const finalFareAmount = ride?.actualFareAmount ?? null;
+  const charges = chargesFrom(finalFareAmount != null ? ride?.actualFareBreakdown : ride?.fareBreakdown);
   // In-transit medical expenses logged by the control room, billed on top.
   const expenses = ride?.inTransitExpenses ?? [];
-  const ambulanceTotal = ride?.amount ?? ride?.fareBreakdown?.finalFare ?? null;
-  const grandTotal = ride?.grandTotal ?? ambulanceTotal;
+  const ambulanceTotal = finalFareAmount ?? ride?.amount ?? ride?.fareBreakdown?.finalFare ?? null;
+  const grandTotal =
+    finalFareAmount != null
+      ? finalFareAmount + (ride?.inTransitTotal ?? 0)
+      : (ride?.grandTotal ?? ambulanceTotal);
   const totalLabel = grandTotal != null ? `₹${money(grandTotal)}` : null;
   const paid = ride?.paymentStatus === 'PAID';
+  const media = ride?.patientMedia ?? [];
 
   const onPay = async () => {
     if (!ride?.bookingId || paying || paid) return;
@@ -257,16 +275,34 @@ export const TrackingScreen: React.FC = () => {
             {pickup?.lat != null && pickup?.lng != null && (
               <Marker coordinate={{ latitude: pickup.lat, longitude: pickup.lng }} title="Pickup" pinColor="#2E9E5B" />
             )}
-            {amb?.lat != null && pickup?.lat != null && (
-              <MapPolyline
-                coordinates={[
-                  { latitude: amb.lat, longitude: amb.lng },
-                  { latitude: pickup.lat as number, longitude: pickup.lng as number },
-                ]}
-                strokeColor="#1A1C1D"
-                strokeWidth={3}
-              />
+            {drop?.lat != null && drop?.lng != null && (
+              <Marker coordinate={{ latitude: drop.lat, longitude: drop.lng }} title="Hospital" pinColor="#D64545" />
             )}
+            {/* Before pickup, line to the pickup point; once onboard, line to
+                the hospital drop — matches whichever point the ambulance is
+                actually heading toward. */}
+            {amb?.lat != null &&
+              (onTripCam && drop?.lat != null ? (
+                <MapPolyline
+                  coordinates={[
+                    { latitude: amb.lat, longitude: amb.lng },
+                    { latitude: drop.lat as number, longitude: drop.lng as number },
+                  ]}
+                  strokeColor="#1A1C1D"
+                  strokeWidth={3}
+                />
+              ) : (
+                pickup?.lat != null && (
+                  <MapPolyline
+                    coordinates={[
+                      { latitude: amb.lat, longitude: amb.lng },
+                      { latitude: pickup.lat as number, longitude: pickup.lng as number },
+                    ]}
+                    strokeColor="#1A1C1D"
+                    strokeWidth={3}
+                  />
+                )
+              ))}
           </MapView>
 
           {/* Status chip */}
@@ -323,6 +359,27 @@ export const TrackingScreen: React.FC = () => {
 
           <View style={styles.divider} />
 
+          {/* Patient photos/videos captured by the crew during transport. */}
+          {media.length > 0 && (
+            <>
+              <Text style={styles.pickupTitle}>Patient photos/videos</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaRow}>
+                {media.map((m, i) => (
+                  <Pressable key={m.url} style={styles.mediaThumbWrap} onPress={() => setViewerIndex(i)}>
+                    {m.type === 'video' ? (
+                      <View style={[styles.mediaThumb, styles.videoThumb]}>
+                        <Text style={styles.videoThumbText}>▶</Text>
+                      </View>
+                    ) : (
+                      <Image source={{ uri: m.url }} style={styles.mediaThumb} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.divider} />
+            </>
+          )}
+
           {/* Payment */}
           <View style={styles.payRow}>
             <View style={{ flex: 1 }}>
@@ -352,13 +409,20 @@ export const TrackingScreen: React.FC = () => {
               </View>
               <Text style={styles.breakupText}>view price breakup</Text>
             </Pressable>
-            <Text style={styles.otp}>OTP : {otp}</Text>
+            {!!otp && <Text style={styles.otp}>OTP : {otp}</Text>}
           </View>
 
           {/* Expanded breakup */}
           {expanded && (
             <View style={[styles.breakupCard, cardShadow]}>
-              <Text style={styles.breakupTitle}>Ambulance Charge</Text>
+              <Text style={styles.breakupTitle}>
+                {finalFareAmount != null ? 'Ambulance Charge (Final — actual route)' : 'Ambulance Charge (Estimate)'}
+              </Text>
+              {finalFareAmount != null && ride?.actualDistanceKm != null && (
+                <Text style={styles.chargeLabel}>
+                  Billed for the full route driven: {ride.actualDistanceKm.toFixed(1)} km
+                </Text>
+              )}
               {charges.length === 0 ? (
                 <Text style={styles.chargeLabel}>Fare is being calculated…</Text>
               ) : (
@@ -417,6 +481,29 @@ export const TrackingScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Full-screen patient media viewer */}
+      <Modal
+        visible={viewerIndex != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerIndex(null)}
+      >
+        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerIndex(null)}>
+          {viewerIndex != null && media[viewerIndex] && (
+            media[viewerIndex].type === 'video' ? (
+              <Video
+                source={{ uri: media[viewerIndex].url }}
+                style={styles.viewerMedia}
+                controls
+                resizeMode="contain"
+              />
+            ) : (
+              <Image source={{ uri: media[viewerIndex].url }} style={styles.viewerMedia} resizeMode="contain" />
+            )
+          )}
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -727,5 +814,36 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: scale(18),
     color: colors.textWhite,
+  },
+  mediaRow: {
+    marginTop: verticalScale(10),
+  },
+  mediaThumbWrap: {
+    marginRight: scale(10),
+  },
+  mediaThumb: {
+    width: scale(72),
+    height: scale(72),
+    borderRadius: radius.card,
+    backgroundColor: colors.avatarCircle,
+  },
+  videoThumb: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoThumbText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(22),
+    color: colors.textPrimary,
+  },
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerMedia: {
+    width: '100%',
+    height: '80%',
   },
 });

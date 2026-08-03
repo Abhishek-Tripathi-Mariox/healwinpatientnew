@@ -41,6 +41,9 @@ import { PaymentScreen } from '../screens/PaymentScreen';
 import { LabTestsScreen } from '../screens/LabTestsScreen';
 import { MedicalRecordsScreen } from '../screens/MedicalRecordsScreen';
 import { HospitalRecordsScreen } from '../screens/HospitalRecordsScreen';
+import { InsuranceScreen } from '../screens/InsuranceScreen';
+import { AddInsuranceScreen } from '../screens/AddInsuranceScreen';
+import { FamilyExpensesScreen } from '../screens/FamilyExpensesScreen';
 import { BookAppointmentScreen } from '../screens/BookAppointmentScreen';
 import { FirstAidScreen } from '../screens/FirstAidScreen';
 import { MyOrdersScreen } from '../screens/MyOrdersScreen';
@@ -105,6 +108,9 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="LabTests" component={LabTestsScreen} />
     <Stack.Screen name="MedicalRecords" component={MedicalRecordsScreen} />
     <Stack.Screen name="HospitalRecords" component={HospitalRecordsScreen} />
+    <Stack.Screen name="Insurance" component={InsuranceScreen} />
+    <Stack.Screen name="AddInsurance" component={AddInsuranceScreen} />
+    <Stack.Screen name="FamilyExpenses" component={FamilyExpensesScreen} />
     <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
     <Stack.Screen name="FirstAid" component={FirstAidScreen} />
     <Stack.Screen name="DoctorList" component={DoctorListScreen} />

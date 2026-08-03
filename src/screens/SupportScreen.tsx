@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,14 +39,14 @@ export const SupportScreen: React.FC = () => {
 
   const callHelpline = () => {
     if (!contact.helplineNumber) {
-      Alert.alert('Helpline unavailable', 'Please try again later.');
+      AppAlert.alert('Helpline unavailable', 'Please try again later.');
       return;
     }
     Linking.openURL(`tel:${contact.helplineNumber}`).catch(() => undefined);
   };
   const emailUs = () => {
     if (!contact.email) {
-      Alert.alert('Email unavailable', 'Please try again later.');
+      AppAlert.alert('Email unavailable', 'Please try again later.');
       return;
     }
     Linking.openURL(`mailto:${contact.email}`).catch(() => undefined);

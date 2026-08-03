@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -121,7 +122,7 @@ export const MyOrdersScreen: React.FC = () => {
   );
 
   const onCancel = (item: Item) => {
-    Alert.alert('Cancel this?', 'Are you sure you want to cancel?', [
+    AppAlert.alert('Cancel this?', 'Are you sure you want to cancel?', [
       { text: 'No', style: 'cancel' },
       {
         text: 'Yes, cancel',
@@ -134,7 +135,7 @@ export const MyOrdersScreen: React.FC = () => {
             else await pharmacyApi.cancelOrder(item.id);
             await load(tab);
           } catch {
-            Alert.alert('Could not cancel', 'Please try again.');
+            AppAlert.alert('Could not cancel', 'Please try again.');
           } finally {
             setCancelling(null);
           }
@@ -157,9 +158,9 @@ export const MyOrdersScreen: React.FC = () => {
       setRescheduleItem(null);
       setPicked(null);
       await load(tab);
-      Alert.alert('Rescheduled', `Updated to ${picked.label}.`);
+      AppAlert.alert('Rescheduled', `Updated to ${picked.label}.`);
     } catch (e: any) {
-      Alert.alert('Could not reschedule', e?.message || 'Please try again.');
+      AppAlert.alert('Could not reschedule', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }

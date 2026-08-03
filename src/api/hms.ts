@@ -56,6 +56,11 @@ export interface HmsInvoice {
   status: string;
   createdAt: string;
   items: { description: string; section: string; quantity: number; amount: number }[];
+  // Cross-links this bill to My Insurance — a claim already raised against
+  // it (incl. auto-drafted ones), or whether the patient has an active
+  // policy at all even if no claim exists yet on THIS bill.
+  claim?: { claimNumber: string; status: string; claimedAmount: number; approvedAmount: number } | null;
+  hasActivePolicy?: boolean;
 }
 
 export interface HmsAdmission {
@@ -74,15 +79,19 @@ export interface HmsSlotsResponse {
   slots: { time: string; iso: string }[];
 }
 
+// `patientUserId` optionally views a family member's records instead of the
+// logged-in user's own — the backend only honours it for confirmed family
+// members (see patient.routes.ts#myHospitalPatientIds), so this is safe to
+// pass through without a separate permission check on the client.
 export const hmsApi = {
-  summary: () => api.get<HmsSummary>('/patient/hms/summary'),
+  summary: (patientUserId?: string) => api.get<HmsSummary>('/patient/hms/summary', { patientUserId }),
   doctorSlots: (doctorId: string, date: string) =>
     api.get<HmsSlotsResponse>(`/patient/hms/doctors/${doctorId}/slots`, { date }),
-  appointments: () => api.get<HmsAppointment[]>('/patient/hms/appointments'),
-  prescriptions: () => api.get<HmsPrescription[]>('/patient/hms/prescriptions'),
-  labOrders: () => api.get<HmsLabOrder[]>('/patient/hms/lab-orders'),
-  invoices: () => api.get<HmsInvoice[]>('/patient/hms/invoices'),
-  admissions: () => api.get<HmsAdmission[]>('/patient/hms/admissions'),
+  appointments: (patientUserId?: string) => api.get<HmsAppointment[]>('/patient/hms/appointments', { patientUserId }),
+  prescriptions: (patientUserId?: string) => api.get<HmsPrescription[]>('/patient/hms/prescriptions', { patientUserId }),
+  labOrders: (patientUserId?: string) => api.get<HmsLabOrder[]>('/patient/hms/lab-orders', { patientUserId }),
+  invoices: (patientUserId?: string) => api.get<HmsInvoice[]>('/patient/hms/invoices', { patientUserId }),
+  admissions: (patientUserId?: string) => api.get<HmsAdmission[]>('/patient/hms/admissions', { patientUserId }),
   bookAppointment: (data: { doctorId: string; scheduledAt: string; reason?: string }) =>
     api.post('/patient/hms/appointments', data),
 };

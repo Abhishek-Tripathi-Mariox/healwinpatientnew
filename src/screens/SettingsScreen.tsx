@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,10 +35,10 @@ export const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
 
   const open = (url: string) =>
-    Linking.openURL(url).catch(() => Alert.alert('Could not open', 'Please try again later.'));
+    Linking.openURL(url).catch(() => AppAlert.alert('Could not open', 'Please try again later.'));
 
   const deleteAccount = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Delete account',
       'This will request permanent deletion of your account and data. Our team will process it within 7 days.',
       [

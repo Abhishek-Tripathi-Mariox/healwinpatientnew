@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,7 +36,7 @@ export const OrderDetailScreen: React.FC = () => {
   const title = kind === 'consultations' ? 'Consultation' : kind === 'lab' ? 'Lab Test' : 'Pharmacy Order';
 
   const open = (url?: string) =>
-    url ? Linking.openURL(url).catch(() => Alert.alert('Could not open', 'Please try again.')) : undefined;
+    url ? Linking.openURL(url).catch(() => AppAlert.alert('Could not open', 'Please try again.')) : undefined;
 
   return (
     <View style={styles.root}>

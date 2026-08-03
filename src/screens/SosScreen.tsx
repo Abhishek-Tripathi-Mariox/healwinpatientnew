@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -105,7 +106,7 @@ export const SosScreen: React.FC = () => {
       // a blocked one (the patient would think help is coming when it isn't).
       if (!loc) {
         setPhase(mode === 'call' ? 'choose' : 'form');
-        Alert.alert(
+        AppAlert.alert(
           'Location required',
           'We couldn’t get your location. An ambulance cannot be dispatched without it.\n\nPlease turn on Location (GPS), allow location access for HealWin, then try again.',
           [

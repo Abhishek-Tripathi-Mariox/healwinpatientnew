@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -64,7 +65,7 @@ export const EmergencyContactsScreen: React.FC = () => {
 
   const save = async () => {
     if (!form.name.trim() || !/^[6-9]\d{9}$/.test(form.phone.trim())) {
-      Alert.alert('Check details', 'Enter a name and a valid 10-digit mobile number.');
+      AppAlert.alert('Check details', 'Enter a name and a valid 10-digit mobile number.');
       return;
     }
     setSaving(true);
@@ -75,14 +76,14 @@ export const EmergencyContactsScreen: React.FC = () => {
       setOpen(false);
       load();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      AppAlert.alert('Could not save', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const remove = (c: Contact) => {
-    Alert.alert('Remove contact?', `Remove ${c.name} from emergency contacts?`, [
+    AppAlert.alert('Remove contact?', `Remove ${c.name} from emergency contacts?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -92,7 +93,7 @@ export const EmergencyContactsScreen: React.FC = () => {
             await sosApi.removeContact(c.id);
             load();
           } catch {
-            Alert.alert('Could not remove', 'Please try again.');
+            AppAlert.alert('Could not remove', 'Please try again.');
           }
         },
       },

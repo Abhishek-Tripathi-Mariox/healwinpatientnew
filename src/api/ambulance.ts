@@ -103,7 +103,16 @@ export interface ServerAmbulanceBooking {
   inTransitTotal?: number;
   grandTotal?: number | null; // ambulance amount + inTransitTotal — final payable
   paymentStatus?: "PENDING" | "PAID";
+  // Actual distance driven for this trip (dispatch point → pickup →
+  // hospital), tracked live from crew location pings — distinct from the
+  // booking-time estimate in `distanceKm`.
   tripDistanceKm?: number | null;
+  // Final fare recomputed from the actual route at trip completion. Null
+  // until the trip is COMPLETED — until then `amount` is the estimate.
+  actualFareAmount?: number | null;
+  actualFareBreakdown?: FareBreakdown | null;
+  // Photos/videos of the patient captured by the crew during transport.
+  patientMedia?: { url: string; type: "photo" | "video"; uploadedAt?: string }[];
   // Live tracking: ambulance's last reported position + distance from pickup.
   driverLocation?: { lat?: number; lng?: number } | null;
   distanceKm?: number | null;

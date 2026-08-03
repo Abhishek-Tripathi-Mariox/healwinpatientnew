@@ -1,16 +1,6 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 
@@ -31,10 +21,34 @@ export function useRecordViewer() {
   const insets = useSafeAreaInsets();
   const [preview, setPreview] = React.useState<ViewableFile | null>(null);
   const [imgLoading, setImgLoading] = React.useState(false);
+  const loadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // RN's <Image> has no built-in network timeout — a stalled/unreachable URL
+  // (blocked cleartext HTTP, unreachable host, dropped connection) can leave
+  // it hanging with neither onLoad nor onError ever firing, so the spinner
+  // would otherwise spin forever. Force the same give-up behaviour as onError
+  // after 15s.
+  const giveUp = () => {
+    setImgLoading(false);
+    setPreview(null);
+    AppAlert.alert('Could not load', 'This file could not be opened in the app. Try “Open in browser”.');
+  };
+
+  React.useEffect(() => {
+    if (!imgLoading) {
+      if (loadTimer.current) clearTimeout(loadTimer.current);
+      return;
+    }
+    loadTimer.current = setTimeout(giveUp, 15000);
+    return () => {
+      if (loadTimer.current) clearTimeout(loadTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imgLoading, preview?.url]);
 
   const openRecord = (r: ViewableFile) => {
     if (!r.url) {
-      Alert.alert('No file', 'This record has no file attached.');
+      AppAlert.alert('No file', 'This record has no file attached.');
       return;
     }
     if (isImageUrl(r.url)) {
@@ -42,7 +56,7 @@ export function useRecordViewer() {
       setPreview(r);
     } else {
       Linking.openURL(r.url).catch(() =>
-        Alert.alert('Could not open', 'No app available to open this file.'),
+        AppAlert.alert('Could not open', 'No app available to open this file.'),
       );
     }
   };
@@ -70,13 +84,7 @@ export function useRecordViewer() {
               resizeMode="contain"
               onLoadStart={() => setImgLoading(true)}
               onLoadEnd={() => setImgLoading(false)}
-              onError={() => {
-                // Without this the spinner would spin forever when an image
-                // fails to load (broken/unreachable URL, cleartext blocked).
-                setImgLoading(false);
-                setPreview(null);
-                Alert.alert('Could not load', 'This file could not be opened in the app. Try “Open in browser”.');
-              }}
+              onError={giveUp}
             />
           )}
         </ScrollView>

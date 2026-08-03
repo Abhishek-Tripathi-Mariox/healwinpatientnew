@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -100,11 +101,11 @@ export const BookAppointmentScreen: React.FC = () => {
   const submit = async () => {
     if (saving) return;
     if (!doctorId) {
-      Alert.alert('Select a doctor', 'Please choose a doctor for your appointment.');
+      AppAlert.alert('Select a doctor', 'Please choose a doctor for your appointment.');
       return;
     }
     if (hasSchedule && !slotIso) {
-      Alert.alert('Pick a slot', 'Please choose an available time slot.');
+      AppAlert.alert('Pick a slot', 'Please choose an available time slot.');
       return;
     }
     setSaving(true);
@@ -115,13 +116,13 @@ export const BookAppointmentScreen: React.FC = () => {
         reason: reason.trim() || undefined,
       });
       const token = res?.tokenNumber;
-      Alert.alert(
+      AppAlert.alert(
         'Appointment booked',
         token ? `Your queue token is ${token}. See it under Hospital Records → Appointments.` : 'Your appointment is booked.',
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (e: any) {
-      Alert.alert('Could not book', e?.message || 'Please try again.');
+      AppAlert.alert('Could not book', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }

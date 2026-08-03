@@ -19,7 +19,7 @@ import { rideStore, useActiveRide } from '../state/rideStore';
 import { socketService } from '../services/socket';
 import { ambulanceApi, AmbulanceType } from '../api/ambulance';
 import { artFor, FALLBACK_DESCRIPTION } from '../utils/ambulanceArt';
-import { homeApi } from '../api/misc';
+import { homeApi, HomeFeed } from '../api/misc';
 import { notificationsApi } from '../api/notifications';
 import { useProfile } from '../state/profileStore';
 import type { RootStackParamList } from '../navigation/types';
@@ -73,6 +73,20 @@ export const HomeScreen: React.FC = () => {
       };
     }, []),
   );
+
+  // Quick-link shortcuts + nearest upcoming OPD appointment (real backend
+  // data — see /patient/home/feed).
+  const [feed, setFeed] = useState<HomeFeed | null>(null);
+  useEffect(() => {
+    let alive = true;
+    homeApi
+      .feed()
+      .then((f) => alive && setFeed(f))
+      .catch(() => alive && setFeed(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Admin-managed home promo cards (no hardcoded copy).
   useEffect(() => {
@@ -275,7 +289,7 @@ export const HomeScreen: React.FC = () => {
         {/* ── Promo card 2: Locate Healthcare Centre ───────── */}
         <Card
           style={styles.locateCard}
-          onPress={() => navigation.navigate('ServiceSelect')}
+          onPress={() => navigation.navigate('CentresList')}
         >
           <LocateHealthcareCard
             width="100%"
@@ -284,6 +298,42 @@ export const HomeScreen: React.FC = () => {
             preserveAspectRatio="xMidYMid slice"
           />
         </Card>
+
+        {/* ── Quick links (hospitals, labs, first aid, insurance) ── */}
+        {!!feed?.shortcuts?.length && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.shortcutsRow}
+          >
+            {feed.shortcuts.map((s) => (
+              <Pressable
+                key={s.key}
+                style={styles.shortcutChip}
+                onPress={() => navigation.navigate(...([s.route, s.params ?? undefined] as never))}
+              >
+                <Text style={styles.shortcutText}>{s.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* ── Upcoming OPD appointment ──────────────────────── */}
+        {!!feed?.upcoming?.length && (
+          <Card style={styles.upcomingCard}>
+            <Text style={styles.upcomingTitle}>Upcoming appointment</Text>
+            <Text style={styles.upcomingSubtitle}>
+              {feed.upcoming[0].doctorName ? `Dr. ${feed.upcoming[0].doctorName}` : 'Doctor'} · Token #
+              {feed.upcoming[0].tokenNumber} ·{' '}
+              {new Date(feed.upcoming[0].scheduledAt).toLocaleString([], {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          </Card>
+        )}
 
         {/* ── Driver on the way (after booking) ─────────────── */}
         {ride && (
@@ -393,6 +443,46 @@ const styles = StyleSheet.create({
     bottom: verticalScale(6),
     width: scale(210),
     height: verticalScale(120),
+  },
+
+  /* Quick-link shortcuts row */
+  shortcutsRow: {
+    paddingHorizontal: spacing.md,
+    paddingTop: verticalScale(14),
+    gap: scale(8),
+  },
+  shortcutChip: {
+    paddingHorizontal: scale(16),
+    height: verticalScale(36),
+    borderRadius: scale(18),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortcutText: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(12),
+    color: colors.textPrimary,
+  },
+
+  /* Upcoming OPD appointment banner */
+  upcomingCard: {
+    marginHorizontal: spacing.md,
+    marginTop: verticalScale(10),
+    padding: spacing.md,
+  },
+  upcomingTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(13),
+    color: colors.textPrimary,
+  },
+  upcomingSubtitle: {
+    fontFamily: fonts.medium,
+    fontSize: scale(12),
+    color: colors.inkMuted,
+    marginTop: verticalScale(4),
   },
 
   /* Promo card 2 */

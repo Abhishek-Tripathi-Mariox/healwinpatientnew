@@ -81,6 +81,8 @@ const SECTIONS: Section[] = [
     rows: [
       { key: 'hospital', label: 'Hospital Records (Appointments, Bills, Reports)', Icon: FileDocIcon, route: 'HospitalRecords' },
       { key: 'records', label: 'Medical Records', Icon: FileDocIcon, route: 'MedicalRecords' },
+      { key: 'insurance', label: 'My Insurance', Icon: FileDocIcon, route: 'Insurance' },
+      { key: 'familyExpenses', label: 'Family Expenses', Icon: FamilyCareIcon, route: 'FamilyExpenses' },
       { key: 'documents', label: 'My Documents', Icon: FileDocIcon, route: 'Documents' },
     ],
   },

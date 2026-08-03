@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { BackButton, CentreCard, CentreFilter, CentreTag, FilterSheet } from '../components';
@@ -61,21 +61,46 @@ const openDirections = (c: Centre) => {
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CentresList'>;
 
+interface ServiceTypeTab {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
 export const CentresListScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<RootStackParamList, 'CentresList'>>();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filter, setFilter] = useState<CentreFilter>('enrolled');
   const [centres, setCentres] = useState<Centre[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<ServiceTypeTab[]>([]);
+  // 'all' or a LocatorServiceType _id (the tab strip shows slugs, but the
+  // list query needs the id — see centresApi.list's serviceType param).
+  const [activeTypeId, setActiveTypeId] = useState<string>('all');
 
   useEffect(() => {
     centresApi
-      .list()
-      .then((list) => setCentres(list.map(mapCentre).filter((c) => c.key)))
-      .catch(() => setCentres([]));
+      .serviceTypes()
+      .then((list) => {
+        setServiceTypes(list as ServiceTypeTab[]);
+        const wanted = route.params?.serviceType;
+        const match = wanted ? (list as ServiceTypeTab[]).find((t) => t.slug === wanted) : null;
+        if (match) setActiveTypeId(match._id);
+      })
+      .catch(() => setServiceTypes([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Apply the chosen filter (HealWin Centre / Enrolled / Other Hospital).
+  useEffect(() => {
+    centresApi
+      .list(activeTypeId === 'all' ? {} : { serviceType: activeTypeId })
+      .then((list) => setCentres(list.map(mapCentre).filter((c) => c.key)))
+      .catch(() => setCentres([]));
+  }, [activeTypeId]);
+
+  // Apply the chosen ownership filter (HealWin Centre / Enrolled / Other Hospital)
+  // on top of the service-type tab.
   const shown = centres.filter((c) => c.kind === filter);
 
   return (
@@ -93,6 +118,19 @@ export const CentresListScreen: React.FC = () => {
           <ListIcon size={scale(20)} color={colors.textPrimary} />
         </Pressable>
       </View>
+
+      {serviceTypes.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow} contentContainerStyle={styles.tabsRowContent}>
+          <Pressable onPress={() => setActiveTypeId('all')} style={[styles.tab, activeTypeId === 'all' && styles.tabActive]}>
+            <Text style={[styles.tabText, activeTypeId === 'all' && styles.tabTextActive]}>All</Text>
+          </Pressable>
+          {serviceTypes.map((t) => (
+            <Pressable key={t._id} onPress={() => setActiveTypeId(t._id)} style={[styles.tab, activeTypeId === t._id && styles.tabActive]}>
+              <Text style={[styles.tabText, activeTypeId === t._id && styles.tabTextActive]}>{t.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -137,6 +175,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: verticalScale(10),
+  },
+  tabsRow: {
+    flexGrow: 0,
+    paddingBottom: verticalScale(8),
+  },
+  tabsRowContent: {
+    paddingHorizontal: spacing.lg,
+    gap: scale(8),
+  },
+  tab: {
+    paddingHorizontal: scale(16),
+    height: verticalScale(34),
+    borderRadius: scale(17),
+    backgroundColor: colors.tabInactive,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    backgroundColor: colors.directionsBlue,
+  },
+  tabText: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(12),
+    color: '#5B5B5B',
+  },
+  tabTextActive: {
+    color: colors.textWhite,
   },
   listBtn: {
     width: scale(40),

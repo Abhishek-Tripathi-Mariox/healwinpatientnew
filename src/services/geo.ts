@@ -1,6 +1,7 @@
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { api } from '../api/client';
+import { AppAlert } from './appAlert';
 
 // Prefer Google Play Services fused location (far more reliable indoors than
 // raw GPS) and let the lib handle its own permission prompts as a backup.
@@ -26,6 +27,10 @@ export interface LatLng {
   address?: string;
 }
 
+// Only nag once per app session even though ensurePermission() runs on every
+// location fetch — otherwise this would pop on every single call.
+let backgroundPromptShown = false;
+
 const ensurePermission = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     try {
@@ -43,8 +48,6 @@ const ensurePermission = async (): Promise<boolean> => {
     // On Android 10+ (API 29+) "Allow all the time" is a SEPARATE background
     // permission — request it after foreground is granted so we can keep the
     // ambulance/patient location updating even when the app is backgrounded.
-    // (Android 11+ shows a system Settings screen for this; declining is fine —
-    // foreground location still works.)
     if (fineOk && Number(Platform.Version) >= 29) {
       try {
         await PermissionsAndroid.request(
@@ -52,6 +55,28 @@ const ensurePermission = async (): Promise<boolean> => {
         );
       } catch {
         /* background is best-effort — foreground already granted */
+      }
+      // Android 11+ (API 30+) never shows "Allow all the time" as an in-app
+      // dialog option — Google requires that specific grant to come from
+      // Settings, for every app, no exceptions. If it's still not granted
+      // after the attempt above, guide the user straight to this app's
+      // Settings screen in one tap instead of leaving them to find it
+      // themselves through the phone's general Settings.
+      if (!backgroundPromptShown) {
+        const bgGranted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+        ).catch(() => false);
+        if (!bgGranted) {
+          backgroundPromptShown = true;
+          AppAlert.alert(
+            'Keep ambulance tracking accurate',
+            'Android requires "Allow all the time" for Location so tracking keeps working while HealWin is in the background. This can only be turned on from Settings — tap below to open it directly.',
+            [
+              { text: 'Not now', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => void Linking.openSettings().catch(() => undefined) },
+            ],
+          );
+        }
       }
     }
     return fineOk;

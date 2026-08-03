@@ -1,13 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -73,7 +66,7 @@ export const MyCreditsScreen: React.FC = () => {
   const addMoney = () => {
     const amt = Number(amount);
     if (!amt || amt <= 0) {
-      Alert.alert('Enter amount', 'Please enter a valid amount to add.');
+      AppAlert.alert('Enter amount', 'Please enter a valid amount to add.');
       return;
     }
     // Dummy payment for now (no gateway) — the Payment screen credits the wallet.

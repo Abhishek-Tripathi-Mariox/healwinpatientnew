@@ -107,7 +107,10 @@ export async function request<T = any>(
     throw new ApiError(message, res.status, code);
   }
 
-  return (json?.data ?? json) as T;
+  // `??` would treat a legitimate `data: null` (e.g. "no geocode match") the
+  // same as a missing `data` key and fall back to the whole envelope — check
+  // for the key's presence instead so a real null payload stays null.
+  return (json && 'data' in json ? json.data : json) as T;
 }
 
 /** Convenience verb helpers. */

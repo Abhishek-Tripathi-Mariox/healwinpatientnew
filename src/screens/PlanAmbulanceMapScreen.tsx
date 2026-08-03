@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -147,6 +147,10 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
   // Pick a typed-address suggestion: resolve to coords, move the map + pin
   // there, and treat it exactly like a panned pickup/drop point.
   const pickSuggestion = async (s: PlaceSuggestion) => {
+    // Dismiss immediately — otherwise the keyboard stays up and hides the map
+    // + address card, which makes a successful selection look like nothing
+    // happened even though the pin/address did update underneath it.
+    Keyboard.dismiss();
     setSearching(true);
     const loc = await resolvePlace(s);
     setSearching(false);
@@ -168,6 +172,7 @@ export const PlanAmbulanceMapScreen: React.FC = () => {
   // the map pin + live distance line up. Falls back to the text-only address
   // (still usable for the booking) when coords can't be resolved.
   const pickSaved = async (a: Address) => {
+    Keyboard.dismiss();
     const text = formatAddress(a);
     setSuggestions([]);
     setQuery('');

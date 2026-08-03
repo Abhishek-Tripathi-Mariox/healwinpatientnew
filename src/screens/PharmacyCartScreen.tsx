@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -43,7 +44,7 @@ export const PharmacyCartScreen: React.FC = () => {
       const out = await pharmacyApi.uploadPrescription(form);
       setPrescriptionUrl(out?.url || null);
     } catch (e: any) {
-      Alert.alert('Upload failed', e?.message || 'Please try again.');
+      AppAlert.alert('Upload failed', e?.message || 'Please try again.');
     } finally {
       setUploading(false);
     }
@@ -59,11 +60,11 @@ export const PharmacyCartScreen: React.FC = () => {
         ...(prescriptionUrl ? { prescriptionUrl } : {}),
       });
       cartStore.clear?.();
-      Alert.alert('Order placed', 'Your pharmacy order has been placed successfully.', [
+      AppAlert.alert('Order placed', 'Your pharmacy order has been placed successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Order failed', e?.message || 'Please try again.');
+      AppAlert.alert('Order failed', e?.message || 'Please try again.');
     } finally {
       setPlacing(false);
     }

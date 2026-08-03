@@ -19,11 +19,26 @@ export interface ActiveRide {
   paymentStatus?: 'PENDING' | 'PAID';
   // Live tracking
   pickup?: LatLng | null;
+  drop?: LatLng | null;
   ambulance?: LatLng | null; // ambulance's last known position
   distanceKm?: number | null;
+  // Actual route driven (dispatch point → pickup → hospital), and the fare
+  // recomputed from it at trip completion. Null until COMPLETED.
+  actualDistanceKm?: number | null;
+  actualFareAmount?: number | null;
+  actualFareBreakdown?: FareBreakdown | null;
+  // Photos/videos of the patient captured by the crew during transport.
+  patientMedia?: { url: string; type: 'photo' | 'video'; uploadedAt?: string }[];
 }
 
 let ride: ActiveRide | null = null;
+
+// The backend keeps a just-completed-but-unpaid ride "active" so the patient
+// lands on the final bill instead of it vanishing — but once they've tapped
+// "Done" on it, every subsequent poll/refocus must NOT resurrect the same
+// ride (that's what made completed trips keep reappearing instead of the
+// app settling on the home screen).
+let dismissedId: string | null = null;
 
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
@@ -37,6 +52,10 @@ const fromServer = (b: ServerAmbulanceBooking): ActiveRide => {
   const pickup =
     b.pickup && (b.pickup.lat || b.pickup.lng)
       ? { lat: b.pickup.lat as number, lng: b.pickup.lng as number, address: b.pickup.address }
+      : null;
+  const drop =
+    b.drop && (b.drop.lat || b.drop.lng)
+      ? { lat: b.drop.lat as number, lng: b.drop.lng as number, address: b.drop.address }
       : null;
   const ambulance =
     b.driverLocation && (b.driverLocation.lat || b.driverLocation.lng)
@@ -57,8 +76,13 @@ const fromServer = (b: ServerAmbulanceBooking): ActiveRide => {
     grandTotal: b.grandTotal ?? b.amount ?? b.fareBreakdown?.finalFare ?? null,
     paymentStatus: b.paymentStatus ?? 'PENDING',
     pickup,
+    drop,
     ambulance,
     distanceKm: km,
+    actualDistanceKm: b.tripDistanceKm ?? null,
+    actualFareAmount: b.actualFareAmount ?? null,
+    actualFareBreakdown: b.actualFareBreakdown ?? null,
+    patientMedia: b.patientMedia ?? [],
   };
 };
 
@@ -87,6 +111,13 @@ export const rideStore = {
     ]);
     const isAssigned = (b: ServerAmbulanceBooking | null) => !!b && !!b.driver?.name;
     const b = isAssigned(req) ? req : sos || req;
+    // A fresh ride (different id) always clears the old dismissal — only the
+    // exact ride the patient dismissed stays hidden.
+    if (b && b._id === dismissedId) {
+      ride = null;
+      emit();
+      return null;
+    }
     ride = b ? fromServer(b) : null;
     emit();
     return ride;
@@ -116,6 +147,7 @@ export const rideStore = {
   },
 
   clear() {
+    if (ride?.bookingId) dismissedId = ride.bookingId;
     ride = null;
     emit();
   },

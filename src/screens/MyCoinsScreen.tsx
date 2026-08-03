@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -51,11 +52,11 @@ export const MyCoinsScreen: React.FC = () => {
   const transfer = async () => {
     const coins = Number(amount);
     if (!coins || coins < 100) {
-      Alert.alert('Minimum 100 coins', 'Enter at least 100 coins to transfer to your wallet.');
+      AppAlert.alert('Minimum 100 coins', 'Enter at least 100 coins to transfer to your wallet.');
       return;
     }
     if (balance != null && coins > balance) {
-      Alert.alert('Not enough coins', `You have ${balance} coins.`);
+      AppAlert.alert('Not enough coins', `You have ${balance} coins.`);
       return;
     }
     setBusy(true);
@@ -63,9 +64,9 @@ export const MyCoinsScreen: React.FC = () => {
       const res = await coinsApi.transferToWallet(coins);
       setAmount('');
       load();
-      Alert.alert('Transferred', `₹${res?.amountCredited ?? coins} added to your wallet.`);
+      AppAlert.alert('Transferred', `₹${res?.amountCredited ?? coins} added to your wallet.`);
     } catch (e: any) {
-      Alert.alert('Could not transfer', e?.message || 'Please try again.');
+      AppAlert.alert('Could not transfer', e?.message || 'Please try again.');
     } finally {
       setBusy(false);
     }

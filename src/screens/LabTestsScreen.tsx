@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -64,9 +65,9 @@ export const LabTestsScreen: React.FC = () => {
       setPickerOpen(false);
       setPicked(null);
       setSelected({});
-      Alert.alert('Booking confirmed', `Home sample collection scheduled for ${picked.label}.`);
+      AppAlert.alert('Booking confirmed', `Home sample collection scheduled for ${picked.label}.`);
     } catch (e: any) {
-      Alert.alert('Could not book', e?.message || 'Please try again.');
+      AppAlert.alert('Could not book', e?.message || 'Please try again.');
     } finally {
       setBooking(false);
     }

@@ -13,7 +13,7 @@ export type RootStackParamList = {
   MyCoins: undefined;
   EmergencyContacts: undefined;
   ServiceSelect: undefined;
-  CentresList: undefined;
+  CentresList: { serviceType?: string } | undefined;
   PlanAmbulance: undefined;
   PlanAmbulanceMap: { mode?: 'pickup' | 'drop'; next?: 'drop' | 'select' } | undefined;
   SelectAmbulance: undefined;
@@ -53,7 +53,12 @@ export type RootStackParamList = {
   Payment: { amount: number; title?: string; purpose?: 'wallet' | 'generic' };
   LabTests: undefined;
   MedicalRecords: undefined;
-  HospitalRecords: undefined;
+  // Optional patientUserId/patientName scope a family member's records
+  // instead of the logged-in user's own — see FamilyExpensesScreen.
+  HospitalRecords: { patientUserId?: string; patientName?: string } | undefined;
+  Insurance: { patientUserId?: string; patientName?: string } | undefined;
+  AddInsurance: undefined;
+  FamilyExpenses: undefined;
   BookAppointment: undefined;
   FirstAid: undefined;
   DoctorList: undefined;

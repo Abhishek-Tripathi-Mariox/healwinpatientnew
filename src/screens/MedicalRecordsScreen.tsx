@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -71,6 +71,11 @@ export const MedicalRecordsScreen: React.FC = () => {
                   </Text>
                 </View>
               ))}
+              {/* These field records become the same hospital patient record —
+                  link through to appointments/bills/admissions raised against it. */}
+              <Pressable style={styles.hospitalLink} onPress={() => navigation.navigate('HospitalRecords')}>
+                <Text style={styles.hospitalLinkText}>View full Hospital Records (visits, bills, admissions) →</Text>
+              </Pressable>
             </>
           )}
           {field.caseNotes.length > 0 && (
@@ -116,6 +121,8 @@ const styles = StyleSheet.create({
   fieldCard: { backgroundColor: colors.surface, borderRadius: scale(12), borderWidth: 1, borderColor: colors.inputBorder, padding: scale(14), gap: verticalScale(6) },
   fieldName: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textBlack },
   fieldMeta: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted },
+  hospitalLink: { paddingVertical: verticalScale(6) },
+  hospitalLinkText: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.directionsBlue },
   vitals: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
   noteText: { fontFamily: fonts.regular, fontSize: scale(13), color: '#4A4A4A' },
   noteTime: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted },

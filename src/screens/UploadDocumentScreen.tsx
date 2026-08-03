@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,11 +33,11 @@ export const UploadDocumentScreen: React.FC = () => {
   const submit = async () => {
     if (saving) return;
     if (!title.trim()) {
-      Alert.alert('Title required', 'Please enter a document title.');
+      AppAlert.alert('Title required', 'Please enter a document title.');
       return;
     }
     if (!asset?.uri) {
-      Alert.alert('File required', 'Please select a file to upload.');
+      AppAlert.alert('File required', 'Please select a file to upload.');
       return;
     }
     setSaving(true);
@@ -53,7 +54,7 @@ export const UploadDocumentScreen: React.FC = () => {
       await recordsApi.upload(form);
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Upload failed', e?.message || 'Please try again.');
+      AppAlert.alert('Upload failed', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }

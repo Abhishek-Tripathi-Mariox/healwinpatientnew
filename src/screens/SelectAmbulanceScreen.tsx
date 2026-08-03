@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -212,7 +213,7 @@ export const SelectAmbulanceScreen: React.FC = () => {
       bookingDraftStore.clearDrop();
       navigation.navigate('Tracking');
     } catch (e: any) {
-      Alert.alert('Booking failed', e?.message || 'Please try again.');
+      AppAlert.alert('Booking failed', e?.message || 'Please try again.');
     } finally {
       setBooking(false);
     }

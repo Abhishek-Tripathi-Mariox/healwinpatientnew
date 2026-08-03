@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 
 import { ScreenHeader } from '../components';
 import {
@@ -18,6 +19,7 @@ import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'HospitalRecords'>;
+type Rt = RouteProp<RootStackParamList, 'HospitalRecords'>;
 type Tab = 'appointments' | 'prescriptions' | 'lab' | 'bills' | 'admissions';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'appointments', label: 'Appointments' },
@@ -38,6 +40,9 @@ const titleCase = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.
 export const HospitalRecordsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<Rt>();
+  const patientUserId = route.params?.patientUserId;
+  const patientName = route.params?.patientName;
   const [tab, setTab] = useState<Tab>('appointments');
   const [loading, setLoading] = useState(false);
 
@@ -50,17 +55,17 @@ export const HospitalRecordsScreen: React.FC = () => {
   const load = useCallback(async (t: Tab) => {
     setLoading(true);
     try {
-      if (t === 'appointments') setAppointments(await hmsApi.appointments());
-      else if (t === 'prescriptions') setPrescriptions(await hmsApi.prescriptions());
-      else if (t === 'lab') setLabs(await hmsApi.labOrders());
-      else if (t === 'bills') setBills(await hmsApi.invoices());
-      else if (t === 'admissions') setAdmissions(await hmsApi.admissions());
+      if (t === 'appointments') setAppointments(await hmsApi.appointments(patientUserId));
+      else if (t === 'prescriptions') setPrescriptions(await hmsApi.prescriptions(patientUserId));
+      else if (t === 'lab') setLabs(await hmsApi.labOrders(patientUserId));
+      else if (t === 'bills') setBills(await hmsApi.invoices(patientUserId));
+      else if (t === 'admissions') setAdmissions(await hmsApi.admissions(patientUserId));
     } catch {
       /* leave empty */
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patientUserId]);
 
   useEffect(() => {
     load(tab);
@@ -70,11 +75,13 @@ export const HospitalRecordsScreen: React.FC = () => {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Hospital Records" onBack={() => navigation.goBack()} />
+      <ScreenHeader title={patientName ? `${patientName}'s Records` : 'Hospital Records'} onBack={() => navigation.goBack()} />
 
-      <Pressable style={styles.bookBtn} onPress={() => navigation.navigate('BookAppointment')}>
-        <Text style={styles.bookText}>+ Book OPD Appointment</Text>
-      </Pressable>
+      {!patientUserId && (
+        <Pressable style={styles.bookBtn} onPress={() => navigation.navigate('BookAppointment')}>
+          <Text style={styles.bookText}>+ Book OPD Appointment</Text>
+        </Pressable>
+      )}
 
       <ScrollView
         horizontal
@@ -157,6 +164,17 @@ export const HospitalRecordsScreen: React.FC = () => {
               {inv.balanceDue > 0 && (
                 <Text style={styles.due}>Balance due: ₹{inv.balanceDue.toLocaleString('en-IN')}</Text>
               )}
+              {inv.claim ? (
+                <Pressable style={styles.insuranceRow} onPress={() => navigation.navigate('Insurance', patientUserId ? { patientUserId, patientName } : undefined)}>
+                  <Text style={styles.insuranceText}>
+                    🛡️ Insurance claim {inv.claim.claimNumber} — {titleCase(inv.claim.status)}
+                  </Text>
+                </Pressable>
+              ) : inv.hasActivePolicy && inv.balanceDue > 0 ? (
+                <Pressable style={styles.insuranceRow} onPress={() => navigation.navigate('Insurance', patientUserId ? { patientUserId, patientName } : undefined)}>
+                  <Text style={styles.insuranceText}>🛡️ You're insured — check My Insurance for coverage</Text>
+                </Pressable>
+              ) : null}
             </View>
           ))
         ) : (
@@ -225,6 +243,8 @@ const styles = StyleSheet.create({
   body: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.textPrimary, marginTop: verticalScale(4) },
   link: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.directionsBlue, marginTop: verticalScale(6) },
   due: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.brandRed, marginTop: verticalScale(6) },
+  insuranceRow: { marginTop: verticalScale(8), paddingTop: verticalScale(8), borderTopWidth: 1, borderTopColor: colors.dashBorder },
+  insuranceText: { fontFamily: fonts.semiBold, fontSize: scale(12), color: colors.directionsBlue },
   badge: { paddingHorizontal: scale(10), height: verticalScale(24), borderRadius: scale(12), backgroundColor: colors.dashBg, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontFamily: fonts.semiBold, fontSize: scale(11), color: colors.ink },
   badgeDue: { backgroundColor: '#FDECEC' },

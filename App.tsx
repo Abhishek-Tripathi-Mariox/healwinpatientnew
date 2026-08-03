@@ -12,6 +12,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { authStore } from './src/state/authStore';
 import { initPush, subscribeForeground, setPushNavigator } from './src/services/push';
 import { InAppBanner, BannerData } from './src/components/InAppBanner';
+import { AlertHost } from './src/services/appAlert';
 import { NAV_STATE_KEY } from './src/api/storage';
 import type { RootStackParamList } from './src/navigation/types';
 import { colors } from './src/theme';
@@ -83,6 +84,7 @@ function App(): React.JSX.Element {
           }
         }}
       />
+      <AlertHost />
     </SafeAreaProvider>
   );
 }

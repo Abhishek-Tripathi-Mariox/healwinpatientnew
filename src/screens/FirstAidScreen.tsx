@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Video from 'react-native-video';
 
 import { ScreenHeader } from '../components';
 import { firstAidApi, type FirstAidGuide } from '../api/misc';
@@ -18,6 +19,7 @@ export const FirstAidScreen: React.FC = () => {
   const [items, setItems] = useState<FirstAidGuide[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<FirstAidGuide | null>(null);
 
   useEffect(() => {
     firstAidApi
@@ -40,7 +42,7 @@ export const FirstAidScreen: React.FC = () => {
             <View key={g._id} style={[styles.card, cardShadow]}>
               <Pressable
                 onPress={() => {
-                  if (g.type === 'video' && g.videoUrl) Linking.openURL(g.videoUrl).catch(() => undefined);
+                  if (g.type === 'video' && g.videoUrl) setPlaying(g);
                   else setOpen(open === g._id ? null : g._id);
                 }}
               >
@@ -61,6 +63,26 @@ export const FirstAidScreen: React.FC = () => {
           ))
         )}
       </ScrollView>
+
+      <Modal visible={!!playing} transparent animationType="fade" onRequestClose={() => setPlaying(null)}>
+        <View style={styles.playerRoot}>
+          <View style={styles.playerBar}>
+            <Text style={styles.playerTitle} numberOfLines={1}>{playing?.title}</Text>
+            <Pressable onPress={() => setPlaying(null)} hitSlop={12}>
+              <Text style={styles.playerClose}>Close</Text>
+            </Pressable>
+          </View>
+          {!!playing?.videoUrl && (
+            <Video
+              source={{ uri: playing.videoUrl }}
+              style={styles.player}
+              controls
+              resizeMode="contain"
+              onError={() => setPlaying(null)}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -78,4 +100,9 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: fonts.semiBold, fontSize: scale(11), color: colors.ink },
   body: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.textPrimary, marginTop: verticalScale(10), lineHeight: scale(20) },
   empty: { fontFamily: fonts.regular, fontSize: scale(14), color: colors.inkMuted, textAlign: 'center', marginTop: verticalScale(40) },
+  playerRoot: { flex: 1, backgroundColor: '#000' },
+  playerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: verticalScale(50), paddingBottom: verticalScale(10) },
+  playerTitle: { flex: 1, marginRight: scale(12), fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textWhite },
+  playerClose: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textWhite },
+  player: { flex: 1 },
 });
