@@ -1,6 +1,7 @@
 import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { api } from '../api/client';
+import { storage } from '../api/storage';
 import { AppAlert } from './appAlert';
 
 // Prefer Google Play Services fused location (far more reliable indoors than
@@ -31,6 +32,29 @@ export interface LatLng {
 // location fetch — otherwise this would pop on every single call.
 let backgroundPromptShown = false;
 
+// Explains WHY we're about to ask for "Allow all the time" before the native
+// OS dialogs fire, instead of only apologizing afterward via the Settings
+// nudge below — users are far more likely to grant background location when
+// they understand the reason first (this is also what Android's own Play
+// Store policy for background-location apps expects). Shown once per install.
+let explainerPromise: Promise<void> | null = null;
+const showBackgroundLocationExplainer = (): Promise<void> => {
+  if (explainerPromise) return explainerPromise;
+  explainerPromise = (async () => {
+    if (await storage.getLocationExplainerShown()) return;
+    await storage.setLocationExplainerShown();
+    await new Promise<void>((resolve) => {
+      AppAlert.alert(
+        'Allow location access',
+        'HealWin needs your location to find nearby ambulances and track your ride in real time — even while the app is in the background, so tracking doesn\'t stop if you switch apps. On the next screen, please choose "Allow all the time".',
+        [{ text: 'Continue', onPress: () => resolve() }],
+        { cancelable: false },
+      );
+    });
+  })();
+  return explainerPromise;
+};
+
 const ensurePermission = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     try {
@@ -40,6 +64,7 @@ const ensurePermission = async (): Promise<boolean> => {
     }
     return true;
   }
+  await showBackgroundLocationExplainer();
   try {
     const res = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,

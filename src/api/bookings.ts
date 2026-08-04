@@ -150,6 +150,8 @@ export const timelineLabel = (status: string): string => {
       return 'Requested';
     case 'assigned':
       return 'Ambulance assigned';
+    case 'accepted':
+      return 'Accepted and on the way';
     case 'arrived':
       return 'Ambulance arrived';
     case 'on_trip':

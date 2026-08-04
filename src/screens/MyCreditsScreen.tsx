@@ -109,7 +109,7 @@ export const MyCreditsScreen: React.FC = () => {
               setAmount(t);
               setSelected(null);
             }}
-            placeholder="Enter Your Ammount"
+            placeholder="Enter Your Amount"
             placeholderTextColor={colors.placeholder}
             keyboardType="number-pad"
             style={styles.input}
@@ -238,10 +238,11 @@ const styles = StyleSheet.create({
     padding: scale(16),
   },
   input: {
-    height: verticalScale(41),
+    minHeight: verticalScale(44),
     borderRadius: scale(8),
     backgroundColor: colors.inputBg,
     paddingHorizontal: scale(16),
+    paddingVertical: verticalScale(8),
     fontFamily: fonts.regular,
     fontSize: scale(15),
     color: colors.textBlack,

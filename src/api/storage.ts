@@ -9,6 +9,7 @@ const K_TOKEN = 'healwin.token';
 const K_USER_ID = 'healwin.userId';
 const K_PHONE = 'healwin.phone';
 const K_DEVICE_ID = 'healwin.deviceId';
+const K_LOCATION_EXPLAINER_SHOWN = 'healwin.locationExplainerShown';
 
 /** Persisted React Navigation state — lets the app reopen on the same screen. */
 export const NAV_STATE_KEY = 'healwin.navState';
@@ -44,5 +45,15 @@ export const storage = {
       await AsyncStorage.setItem(K_DEVICE_ID, id);
     }
     return id;
+  },
+
+  /** Whether the "why we need background location" explainer has already
+   * been shown once this install (so it doesn't nag on every permission
+   * check — see services/geo.ts#ensurePermission). */
+  async getLocationExplainerShown(): Promise<boolean> {
+    return (await AsyncStorage.getItem(K_LOCATION_EXPLAINER_SHOWN)) === '1';
+  },
+  async setLocationExplainerShown(): Promise<void> {
+    await AsyncStorage.setItem(K_LOCATION_EXPLAINER_SHOWN, '1');
   },
 };

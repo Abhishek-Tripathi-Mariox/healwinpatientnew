@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { ScreenHeader } from '../components';
+import { VoiceTextInput } from '../components/VoiceTextInput';
 import { doctorsApi } from '../api/catalog';
 import { hmsApi } from '../api/hms';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
@@ -204,10 +205,11 @@ export const BookAppointmentScreen: React.FC = () => {
         )}
 
         <Text style={styles.label}>Reason (optional)</Text>
-        <TextInput
+        <VoiceTextInput
           value={reason}
           onChangeText={setReason}
-          placeholder="e.g. Fever, follow-up, consultation"
+          onTranscript={(text) => setReason((prev) => (prev ? `${prev} ${text}` : text))}
+          placeholder="e.g. Fever, follow-up, consultation — or tap the mic to speak"
           placeholderTextColor={colors.placeholder}
           multiline
           textAlignVertical="top"

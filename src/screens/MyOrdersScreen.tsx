@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
@@ -33,6 +33,8 @@ const TABS: { key: Tab; label: string }[] = [
 
 const fmtDate = (iso?: string) =>
   iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const fmtDateOnly = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
 const humanStatus = (s: string) =>
   (s || '').replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -43,10 +45,13 @@ const isDone = (s: string) => ['COMPLETED', 'DELIVERED', 'REPORT_READY'].include
 const statusTone = (s: string) =>
   isCancelled(s) ? colors.brandRedDark : isDone(s) ? '#2E9B2E' : colors.directionsBlue;
 
+// `subtitle` is now just the booking date (a quick scan-line above the richer
+// type-specific CardBody below it) — speciality/tests/items moved into
+// CardBody so they're not shown twice.
 const mapConsultation = (c: any): Item => ({
   id: c._id,
   title: c.doctorName ? `Dr. ${c.doctorName}` : 'Consultation',
-  subtitle: [c.speciality, c.slotLabel ? `🕒 ${c.slotLabel}` : fmtDate(c.createdAt)].filter(Boolean).join(' · '),
+  subtitle: fmtDateOnly(c.createdAt),
   amount: c.fee ?? 0,
   status: c.status,
   cancellable: !['COMPLETED', 'CANCELLED'].includes(c.status),
@@ -56,8 +61,8 @@ const mapConsultation = (c: any): Item => ({
 
 const mapLab = (b: any): Item => ({
   id: b._id,
-  title: (b.tests || []).map((t: any) => t.name).join(', ') || 'Lab tests',
-  subtitle: [b.slotLabel ? `🕒 ${b.slotLabel}` : b.slot, fmtDate(b.createdAt)].filter(Boolean).join(' · '),
+  title: `Lab · ${(b.tests || []).length} test${(b.tests || []).length === 1 ? '' : 's'}`,
+  subtitle: fmtDateOnly(b.createdAt),
   amount: b.totalAmount ?? 0,
   status: b.status,
   cancellable: !['REPORT_READY', 'CANCELLED'].includes(b.status),
@@ -66,12 +71,84 @@ const mapLab = (b: any): Item => ({
 
 const mapPharmacy = (o: any): Item => ({
   id: o._id,
-  title: (o.items || []).map((i: any) => `${i.name}${i.qty > 1 ? ` ×${i.qty}` : ''}`).join(', ') || 'Pharmacy order',
-  subtitle: fmtDate(o.createdAt),
+  title: `Pharmacy · ${(o.items || []).length} item${(o.items || []).length === 1 ? '' : 's'}`,
+  subtitle: fmtDateOnly(o.createdAt),
   amount: o.totalAmount ?? 0,
   status: o.status,
   cancellable: !['DELIVERED', 'CANCELLED'].includes(o.status),
   raw: o,
+});
+
+/**
+ * Type-specific body — like HospitalRecordsScreen's cards (doctor/diagnosis
+ * for a visit, itemized results/drugs) instead of one squashed title line.
+ */
+const CardBody: React.FC<{ tab: Tab; raw: any }> = ({ tab, raw }) => {
+  if (tab === 'consultations') {
+    return (
+      <>
+        {!!raw.speciality && <Text style={cbStyles.line}>{raw.speciality}</Text>}
+        {!!(raw.slotLabel || raw.scheduledAt) && (
+          <Text style={cbStyles.meta}>🕒 {raw.slotLabel || fmtDate(raw.scheduledAt)}</Text>
+        )}
+        {!!raw.symptoms && (
+          <Text style={cbStyles.line}>
+            <Text style={cbStyles.label}>Symptoms: </Text>
+            {raw.symptoms}
+          </Text>
+        )}
+        {!!raw.summary && (
+          <View style={cbStyles.box}>
+            <Text style={cbStyles.boxLabel}>Doctor's summary</Text>
+            <Text style={cbStyles.boxText}>{raw.summary}</Text>
+          </View>
+        )}
+      </>
+    );
+  }
+  if (tab === 'lab') {
+    const tests: any[] = raw.tests || [];
+    const reports: any[] = raw.reportFiles?.length ? raw.reportFiles : raw.reportUrl ? [{ url: raw.reportUrl, label: 'Report' }] : [];
+    return (
+      <>
+        {tests.map((t, i) => (
+          <Text key={i} style={cbStyles.line}>• {t.name}{t.price ? `  —  ₹${t.price}` : ''}</Text>
+        ))}
+        {!!raw.reportNotes && (
+          <View style={cbStyles.box}>
+            <Text style={cbStyles.boxLabel}>Findings</Text>
+            <Text style={cbStyles.boxText}>{raw.reportNotes}</Text>
+          </View>
+        )}
+        {reports.map((r, i) => (
+          <Pressable key={i} onPress={() => Linking.openURL(r.url).catch(() => undefined)}>
+            <Text style={cbStyles.link}>📄 {r.label || `View report ${i + 1}`}</Text>
+          </Pressable>
+        ))}
+      </>
+    );
+  }
+  // pharmacy
+  const items: any[] = raw.items || [];
+  return (
+    <>
+      {items.map((it, i) => (
+        <Text key={i} style={cbStyles.line}>
+          • {it.name}{it.qty > 1 ? ` ×${it.qty}` : ''}{it.price ? `  —  ₹${it.price * (it.qty || 1)}` : ''}
+        </Text>
+      ))}
+    </>
+  );
+};
+
+const cbStyles = StyleSheet.create({
+  line: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.textPrimary, marginTop: verticalScale(4) },
+  meta: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(4) },
+  label: { fontFamily: fonts.semiBold, color: colors.ink },
+  box: { marginTop: verticalScale(8), padding: scale(10), borderRadius: scale(10), backgroundColor: colors.dashBg },
+  boxLabel: { fontFamily: fonts.semiBold, fontSize: scale(11), color: colors.ink, marginBottom: verticalScale(2) },
+  boxText: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.textPrimary },
+  link: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.directionsBlue, marginTop: verticalScale(6) },
 });
 
 export const MyOrdersScreen: React.FC = () => {
@@ -197,6 +274,7 @@ export const MyOrdersScreen: React.FC = () => {
                 </View>
               </View>
               {!!it.subtitle && <Text style={styles.subtitle}>{it.subtitle}</Text>}
+              <CardBody tab={tab} raw={it.raw} />
               <View style={styles.cardBottom}>
                 <Text style={styles.amount}>{it.amount > 0 ? `₹${it.amount}` : '—'}</Text>
                 <View style={styles.actions}>
