@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,20 +13,23 @@ import {
   type HmsLabOrder,
   type HmsInvoice,
   type HmsAdmission,
+  type HmsDocument,
 } from '../api/hms';
+import { useRecordViewer } from '../hooks/useRecordViewer';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'HospitalRecords'>;
 type Rt = RouteProp<RootStackParamList, 'HospitalRecords'>;
-type Tab = 'appointments' | 'prescriptions' | 'lab' | 'bills' | 'admissions';
+type Tab = 'appointments' | 'prescriptions' | 'lab' | 'bills' | 'admissions' | 'media';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'appointments', label: 'Appointments' },
   { key: 'prescriptions', label: 'Prescriptions' },
   { key: 'lab', label: 'Lab Reports' },
   { key: 'bills', label: 'Bills' },
   { key: 'admissions', label: 'Admissions' },
+  { key: 'media', label: 'Photos & Videos' },
 ];
 
 const fmtDate = (iso?: string | null) =>
@@ -51,6 +54,8 @@ export const HospitalRecordsScreen: React.FC = () => {
   const [labs, setLabs] = useState<HmsLabOrder[]>([]);
   const [bills, setBills] = useState<HmsInvoice[]>([]);
   const [admissions, setAdmissions] = useState<HmsAdmission[]>([]);
+  const [media, setMedia] = useState<HmsDocument[]>([]);
+  const { openRecord, viewer } = useRecordViewer();
 
   const load = useCallback(async (t: Tab) => {
     setLoading(true);
@@ -60,6 +65,7 @@ export const HospitalRecordsScreen: React.FC = () => {
       else if (t === 'lab') setLabs(await hmsApi.labOrders(patientUserId));
       else if (t === 'bills') setBills(await hmsApi.invoices(patientUserId));
       else if (t === 'admissions') setAdmissions(await hmsApi.admissions(patientUserId));
+      else if (t === 'media') setMedia(await hmsApi.documents(patientUserId));
     } catch {
       /* leave empty */
     } finally {
@@ -177,7 +183,7 @@ export const HospitalRecordsScreen: React.FC = () => {
               ) : null}
             </View>
           ))
-        ) : (
+        ) : tab === 'admissions' ? (
           admissions.length === 0 ? empty('No admissions on record.') :
           admissions.map((a) => (
             <View key={a._id} style={[styles.card, cardShadow]}>
@@ -197,8 +203,43 @@ export const HospitalRecordsScreen: React.FC = () => {
               )}
             </View>
           ))
+        ) : (
+          media.length === 0 ? empty('No photos or videos on record.') : (
+            <View style={styles.mediaGrid}>
+              {media.map((m, i) => {
+                const isPhoto = m.type === 'photo';
+                const isVideo = m.type === 'video';
+                return (
+                  <Pressable
+                    key={i}
+                    style={styles.mediaTile}
+                    onPress={() =>
+                      isPhoto || isVideo
+                        ? openRecord({ name: m.label || (isVideo ? 'Video' : 'Photo'), url: m.url })
+                        : Linking.openURL(m.url).catch(() => undefined)
+                    }
+                  >
+                    {isPhoto ? (
+                      <Image source={{ uri: m.url }} style={styles.mediaThumb} resizeMode="cover" />
+                    ) : isVideo ? (
+                      <View style={[styles.mediaThumb, styles.mediaVideoThumb]}>
+                        <Text style={styles.mediaPlayIcon}>▶</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.mediaThumb, styles.mediaDocThumb]}>
+                        <Text style={styles.mediaDocIcon}>📄</Text>
+                      </View>
+                    )}
+                    <Text style={styles.mediaLabel} numberOfLines={1}>{m.label || titleCase(m.type)}</Text>
+                    <Text style={styles.mediaDate}>{fmtDate(m.uploadedAt)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )
         )}
       </ScrollView>
+      {viewer}
     </View>
   );
 };
@@ -254,4 +295,21 @@ const styles = StyleSheet.create({
   summaryBox: { marginTop: verticalScale(10), padding: scale(10), borderRadius: scale(10), backgroundColor: colors.dashBg },
   summaryLabel: { fontFamily: fonts.semiBold, fontSize: scale(12), color: colors.ink, marginBottom: verticalScale(2) },
   empty: { fontFamily: fonts.regular, fontSize: scale(14), color: colors.inkMuted, textAlign: 'center', marginTop: verticalScale(40) },
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(10) },
+  mediaTile: { width: '31%' },
+  mediaThumb: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: scale(10),
+    backgroundColor: colors.dashBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  mediaVideoThumb: { backgroundColor: colors.ink },
+  mediaPlayIcon: { fontFamily: fonts.bold, fontSize: scale(20), color: colors.textWhite },
+  mediaDocThumb: { borderWidth: 1, borderColor: colors.dashBorder },
+  mediaDocIcon: { fontSize: scale(24) },
+  mediaLabel: { fontFamily: fonts.medium, fontSize: scale(11), color: colors.ink, marginTop: verticalScale(4) },
+  mediaDate: { fontFamily: fonts.regular, fontSize: scale(10), color: colors.inkMuted },
 });

@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PersonAddIcon, PersonIcon, PhoneIcon } from './icons';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
+import { cardShadow } from '../theme/shadows';
 import type { SavedContact } from '../state/contactsStore';
 import type { FamilyMember } from '../state/familyStore';
 
@@ -121,27 +122,26 @@ export const ContactSheet: React.FC<ContactSheetProps> = ({
 };
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,20,24,0.4)' },
   sheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#FFFEFE',
-    borderWidth: 1,
-    borderColor: '#D5D5D5',
-    borderTopLeftRadius: scale(20),
-    borderTopRightRadius: scale(20),
+    borderTopLeftRadius: scale(26),
+    borderTopRightRadius: scale(26),
     paddingHorizontal: spacing.lg,
-    paddingTop: verticalScale(12),
+    paddingTop: verticalScale(14),
+    ...cardShadow,
   },
   handle: {
     alignSelf: 'center',
-    width: scale(90),
-    height: scale(4),
+    width: scale(44),
+    height: scale(5),
     borderRadius: scale(3),
-    backgroundColor: '#C9CDD2',
-    marginBottom: verticalScale(14),
+    backgroundColor: '#D8DBE0',
+    marginBottom: verticalScale(16),
   },
   title: {
     textAlign: 'center',

@@ -79,6 +79,13 @@ export interface HmsSlotsResponse {
   slots: { time: string; iso: string }[];
 }
 
+export interface HmsDocument {
+  type: string;
+  label?: string;
+  url: string;
+  uploadedAt: string;
+}
+
 // `patientUserId` optionally views a family member's records instead of the
 // logged-in user's own — the backend only honours it for confirmed family
 // members (see patient.routes.ts#myHospitalPatientIds), so this is safe to
@@ -92,6 +99,7 @@ export const hmsApi = {
   labOrders: (patientUserId?: string) => api.get<HmsLabOrder[]>('/patient/hms/lab-orders', { patientUserId }),
   invoices: (patientUserId?: string) => api.get<HmsInvoice[]>('/patient/hms/invoices', { patientUserId }),
   admissions: (patientUserId?: string) => api.get<HmsAdmission[]>('/patient/hms/admissions', { patientUserId }),
+  documents: (patientUserId?: string) => api.get<HmsDocument[]>('/patient/hms/documents', { patientUserId }),
   bookAppointment: (data: { doctorId: string; scheduledAt: string; reason?: string }) =>
     api.post('/patient/hms/appointments', data),
 };

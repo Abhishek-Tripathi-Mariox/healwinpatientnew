@@ -150,6 +150,18 @@ export const TrackingScreen: React.FC = () => {
   const statusKey = (ride?.status || '').toLowerCase();
   const isCompleted = statusKey === 'completed';
   const isOnTrip = statusKey === 'on_trip';
+  // Once the trip completes, give the customer a few seconds to see the fare
+  // summary, then take them back to Home automatically — they shouldn't have
+  // to know to tap "Done" themselves (that button still works for an
+  // immediate manual exit, e.g. once they're done reviewing the bill).
+  useEffect(() => {
+    if (!isCompleted) return;
+    const t = setTimeout(() => {
+      rideStore.clear();
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [isCompleted, navigation]);
   const hasArrived = statusKey === 'arrived' || statusKey === 'on_scene';
   const headerTitle = isCompleted
     ? 'Trip completed'

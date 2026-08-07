@@ -9,6 +9,7 @@ import {
   ShieldPlusIcon,
 } from './icons';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
+import { cardShadow } from '../theme/shadows';
 
 export type CentreFilter = 'centre' | 'enrolled' | 'other';
 
@@ -87,42 +88,38 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: '#A2A2A2',
-    borderTopLeftRadius: scale(15),
-    borderTopRightRadius: scale(15),
+    borderTopLeftRadius: scale(26),
+    borderTopRightRadius: scale(26),
     paddingHorizontal: spacing.lg,
-    paddingTop: verticalScale(10),
+    paddingTop: verticalScale(12),
+    ...cardShadow,
   },
   handle: {
     alignSelf: 'center',
-    width: scale(120),
+    width: scale(44),
     height: scale(5),
     borderRadius: scale(3),
-    backgroundColor: '#C9CDD2',
-    marginBottom: verticalScale(16),
+    backgroundColor: '#D8DBE0',
+    marginBottom: verticalScale(18),
   },
   list: {
-    borderRadius: scale(8),
+    borderRadius: scale(16),
     overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(12),
-    height: verticalScale(51),
-    paddingHorizontal: scale(10),
+    height: verticalScale(56),
+    paddingHorizontal: scale(14),
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: '#D4D4D4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F3',
   },
-  rowFirst: {
-    borderTopLeftRadius: scale(8),
-    borderTopRightRadius: scale(8),
-  },
+  rowFirst: {},
   rowLast: {
-    borderBottomLeftRadius: scale(8),
-    borderBottomRightRadius: scale(8),
+    borderBottomWidth: 0,
   },
   rowActive: {
     backgroundColor: colors.sheetSelected,
@@ -137,14 +134,12 @@ const styles = StyleSheet.create({
     color: colors.sheetEnrolledText,
   },
   cancel: {
-    height: verticalScale(48),
-    borderRadius: scale(8),
+    height: verticalScale(50),
+    borderRadius: scale(25),
     backgroundColor: colors.sheetCancel,
-    borderWidth: 1,
-    borderColor: '#D4D4D4',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: verticalScale(10),
+    marginTop: verticalScale(14),
   },
   cancelText: {
     fontFamily: fonts.semiBold,

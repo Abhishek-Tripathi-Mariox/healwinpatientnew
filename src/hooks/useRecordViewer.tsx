@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Video from 'react-native-video';
 import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
@@ -11,15 +12,18 @@ export interface ViewableFile {
 }
 
 const isImageUrl = (url: string) => /\.(jpe?g|png|webp|gif|heic|bmp)(\?.*)?$/i.test(url);
+const isVideoUrl = (url: string) => /\.(mp4|mov|m4v|webm|3gp)(\?.*)?$/i.test(url);
 
 /**
  * Shared "view an uploaded record" behaviour: images preview full-screen
- * in-app (pinch-to-zoom), PDFs/docs open in the device's viewer. Returns an
+ * in-app (pinch-to-zoom), videos play full-screen in-app with controls,
+ * everything else (PDFs/docs) opens in the device's viewer. Returns an
  * `openRecord` handler and the `viewer` modal element to render once per screen.
  */
 export function useRecordViewer() {
   const insets = useSafeAreaInsets();
   const [preview, setPreview] = React.useState<ViewableFile | null>(null);
+  const [videoPreview, setVideoPreview] = React.useState<ViewableFile | null>(null);
   const [imgLoading, setImgLoading] = React.useState(false);
   const loadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,6 +58,8 @@ export function useRecordViewer() {
     if (isImageUrl(r.url)) {
       setImgLoading(true);
       setPreview(r);
+    } else if (isVideoUrl(r.url)) {
+      setVideoPreview(r);
     } else {
       Linking.openURL(r.url).catch(() =>
         AppAlert.alert('Could not open', 'No app available to open this file.'),
@@ -101,7 +107,32 @@ export function useRecordViewer() {
     </Modal>
   );
 
-  return { openRecord, viewer };
+  const videoViewer = (
+    <Modal visible={!!videoPreview} transparent animationType="fade" onRequestClose={() => setVideoPreview(null)}>
+      <View style={styles.viewerRoot}>
+        <View style={[styles.viewerBar, { paddingTop: insets.top + verticalScale(6) }]}>
+          <Text style={styles.viewerTitle} numberOfLines={1}>{videoPreview?.name}</Text>
+          <Pressable onPress={() => setVideoPreview(null)} hitSlop={12}>
+            <Text style={styles.viewerClose}>Close</Text>
+          </Pressable>
+        </View>
+        {!!videoPreview?.url && (
+          <Video
+            source={{ uri: videoPreview.url }}
+            style={styles.viewerVideo}
+            controls
+            resizeMode="contain"
+            onError={() => {
+              setVideoPreview(null);
+              AppAlert.alert('Could not play', 'This video could not be played in the app.');
+            }}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+
+  return { openRecord, viewer: <>{viewer}{videoViewer}</> };
 }
 
 const styles = StyleSheet.create({
@@ -118,6 +149,7 @@ const styles = StyleSheet.create({
   viewerScroll: { flex: 1 },
   viewerContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
   viewerImage: { width: '100%', height: '100%' },
+  viewerVideo: { flex: 1 },
   viewerSpinner: { position: 'absolute', top: '50%', left: 0, right: 0 },
   viewerOpen: {
     position: 'absolute',

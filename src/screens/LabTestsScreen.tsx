@@ -183,13 +183,14 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   bookText: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textWhite },
   bookDisabled: { backgroundColor: '#A9BEE6' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,20,24,0.4)' },
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.background,
-    borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18),
-    paddingHorizontal: spacing.lg, paddingTop: verticalScale(10),
+    borderTopLeftRadius: scale(26), borderTopRightRadius: scale(26),
+    paddingHorizontal: spacing.lg, paddingTop: verticalScale(12),
+    ...cardShadow,
   },
-  handle: { alignSelf: 'center', width: scale(90), height: scale(4), borderRadius: scale(3), backgroundColor: '#C9CDD2', marginBottom: verticalScale(14) },
+  handle: { alignSelf: 'center', width: scale(44), height: scale(5), borderRadius: scale(3), backgroundColor: '#D8DBE0', marginBottom: verticalScale(16) },
   sheetTitle: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textBlack, marginBottom: verticalScale(12) },
   confirm: { height: verticalScale(50), borderRadius: scale(12), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(18) },
 });
