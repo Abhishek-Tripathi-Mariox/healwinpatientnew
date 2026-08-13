@@ -1,4 +1,4 @@
-import { api } from './client';
+import {api} from './client';
 
 /**
  * Hospital (HMS) patient-portal endpoints. The app User is linked to its
@@ -29,10 +29,41 @@ export interface HmsAppointment {
 export interface HmsPrescription {
   _id: string;
   doctorName: string;
+  doctorSpeciality?: string;
   visitDate: string;
   encounterType: string;
+  /** Why the patient came. */
+  chiefComplaint?: string;
+  /** The doctor's plain-language advice — "what was told". */
+  summary?: string;
   diagnoses: string[];
-  prescriptions: { drug: string; dose?: string; frequency?: string; duration?: string }[];
+  severity?: string;
+  treatmentPlan?: string;
+  followUpAt?: string;
+  vitals?: {
+    bloodPressure?: string;
+    pulse?: number;
+    temperature?: number;
+    spo2?: number;
+    respiratoryRate?: number;
+    height?: number;
+    weight?: number;
+  };
+  prescriptions: {
+    drug: string;
+    dose?: string;
+    frequency?: string;
+    duration?: string;
+    timing?: string;
+    notes?: string;
+  }[];
+  /** Tests ordered in this visit, with results once reported. */
+  tests?: {
+    name: string;
+    category: string;
+    status: string;
+    resultValue?: string;
+  }[];
 }
 
 export interface HmsLabOrder {
@@ -42,7 +73,7 @@ export interface HmsLabOrder {
   status: 'ordered' | 'collected' | 'reported';
   resultValue?: string;
   resultNotes?: string;
-  reports: { url: string; label: string }[];
+  reports: {url: string; label: string}[];
   orderedAt: string;
   reportedAt?: string | null;
 }
@@ -55,12 +86,44 @@ export interface HmsInvoice {
   balanceDue: number;
   status: string;
   createdAt: string;
-  items: { description: string; section: string; quantity: number; amount: number }[];
+  subtotal?: number;
+  taxAmount?: number;
+  discount?: number;
+  items: {
+    description: string;
+    section: string;
+    quantity: number;
+    unitPrice?: number;
+    amount: number;
+  }[];
+  /** Receipt history — what was paid, how, and when. */
+  payments?: {
+    amount: number;
+    method: string;
+    paidAt: string;
+    reference?: string | null;
+  }[];
+  refunds?: {amount: number; method: string; paidAt: string}[];
   // Cross-links this bill to My Insurance — a claim already raised against
   // it (incl. auto-drafted ones), or whether the patient has an active
   // policy at all even if no claim exists yet on THIS bill.
-  claim?: { claimNumber: string; status: string; claimedAmount: number; approvedAmount: number } | null;
+  claim?: {
+    claimNumber: string;
+    status: string;
+    claimedAmount: number;
+    approvedAmount: number;
+  } | null;
   hasActivePolicy?: boolean;
+}
+
+/** Lifetime billing totals across every bill, plus where the money went. */
+export interface HmsBillingSummary {
+  totalBilled: number;
+  totalPaid: number;
+  balanceDue: number;
+  invoiceCount: number;
+  unpaidCount: number;
+  bySection: {section: string; amount: number; count: number}[];
 }
 
 export interface HmsAdmission {
@@ -76,7 +139,7 @@ export interface HmsAdmission {
 
 export interface HmsSlotsResponse {
   hasSchedule: boolean;
-  slots: { time: string; iso: string }[];
+  slots: {time: string; iso: string}[];
 }
 
 export interface HmsDocument {
@@ -91,15 +154,27 @@ export interface HmsDocument {
 // members (see patient.routes.ts#myHospitalPatientIds), so this is safe to
 // pass through without a separate permission check on the client.
 export const hmsApi = {
-  summary: (patientUserId?: string) => api.get<HmsSummary>('/patient/hms/summary', { patientUserId }),
+  summary: (patientUserId?: string) =>
+    api.get<HmsSummary>('/patient/hms/summary', {patientUserId}),
   doctorSlots: (doctorId: string, date: string) =>
-    api.get<HmsSlotsResponse>(`/patient/hms/doctors/${doctorId}/slots`, { date }),
-  appointments: (patientUserId?: string) => api.get<HmsAppointment[]>('/patient/hms/appointments', { patientUserId }),
-  prescriptions: (patientUserId?: string) => api.get<HmsPrescription[]>('/patient/hms/prescriptions', { patientUserId }),
-  labOrders: (patientUserId?: string) => api.get<HmsLabOrder[]>('/patient/hms/lab-orders', { patientUserId }),
-  invoices: (patientUserId?: string) => api.get<HmsInvoice[]>('/patient/hms/invoices', { patientUserId }),
-  admissions: (patientUserId?: string) => api.get<HmsAdmission[]>('/patient/hms/admissions', { patientUserId }),
-  documents: (patientUserId?: string) => api.get<HmsDocument[]>('/patient/hms/documents', { patientUserId }),
-  bookAppointment: (data: { doctorId: string; scheduledAt: string; reason?: string }) =>
-    api.post('/patient/hms/appointments', data),
+    api.get<HmsSlotsResponse>(`/patient/hms/doctors/${doctorId}/slots`, {date}),
+  appointments: (patientUserId?: string) =>
+    api.get<HmsAppointment[]>('/patient/hms/appointments', {patientUserId}),
+  prescriptions: (patientUserId?: string) =>
+    api.get<HmsPrescription[]>('/patient/hms/prescriptions', {patientUserId}),
+  labOrders: (patientUserId?: string) =>
+    api.get<HmsLabOrder[]>('/patient/hms/lab-orders', {patientUserId}),
+  invoices: (patientUserId?: string) =>
+    api.get<HmsInvoice[]>('/patient/hms/invoices', {patientUserId}),
+  billingSummary: (patientUserId?: string) =>
+    api.get<HmsBillingSummary>('/patient/hms/billing-summary', {patientUserId}),
+  admissions: (patientUserId?: string) =>
+    api.get<HmsAdmission[]>('/patient/hms/admissions', {patientUserId}),
+  documents: (patientUserId?: string) =>
+    api.get<HmsDocument[]>('/patient/hms/documents', {patientUserId}),
+  bookAppointment: (data: {
+    doctorId: string;
+    scheduledAt: string;
+    reason?: string;
+  }) => api.post('/patient/hms/appointments', data),
 };
