@@ -168,6 +168,16 @@ export const hmsApi = {
     api.get<HmsInvoice[]>('/patient/hms/invoices', {patientUserId}),
   billingSummary: (patientUserId?: string) =>
     api.get<HmsBillingSummary>('/patient/hms/billing-summary', {patientUserId}),
+  /**
+   * Short-lived link to the printable prescription. Two steps because the OS
+   * PDF viewer can't send an auth header — this authenticated call returns a
+   * URL carrying a 10-minute token scoped to just that prescription.
+   */
+  prescriptionLink: (encounterId: string, patientUserId?: string) =>
+    api.post<{url: string}>(
+      `/patient/hms/prescriptions/${encounterId}/share-link`,
+      {patientUserId},
+    ),
   admissions: (patientUserId?: string) =>
     api.get<HmsAdmission[]>('/patient/hms/admissions', {patientUserId}),
   documents: (patientUserId?: string) =>

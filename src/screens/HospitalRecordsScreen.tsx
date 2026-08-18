@@ -15,6 +15,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 
 import {ScreenHeader} from '../components';
+import {AppAlert} from '../services/appAlert';
 import {
   hmsApi,
   type HmsAppointment,
@@ -127,6 +128,23 @@ export const HospitalRecordsScreen: React.FC = () => {
   }, [tab, load]);
 
   const empty = (msg: string) => <Text style={styles.empty}>{msg}</Text>;
+
+  /**
+   * Open the printable prescription in the device's PDF viewer. Two hops: an
+   * authenticated call mints a short-lived scoped link, which Linking can open
+   * (it cannot send an auth header itself).
+   */
+  const openPrescription = async (encounterId: string) => {
+    try {
+      const {url} = await hmsApi.prescriptionLink(encounterId, patientUserId);
+      await Linking.openURL(url);
+    } catch {
+      AppAlert.alert(
+        'Could not open',
+        'The prescription could not be opened. Please try again.',
+      );
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -288,6 +306,14 @@ export const HospitalRecordsScreen: React.FC = () => {
                       .join('  ·  ')}
                   </Text>
                 )}
+
+                <Pressable
+                  onPress={() => openPrescription(p._id)}
+                  style={styles.rxDownload}>
+                  <Text style={styles.rxDownloadText}>
+                    ⬇ Download prescription (PDF)
+                  </Text>
+                </Pressable>
 
                 {!!p.followUpAt && (
                   <Text style={styles.due}>
@@ -730,6 +756,12 @@ const styles = StyleSheet.create({
   paidText: {color: colors.creditGreen},
   dueText: {color: colors.brandRed},
   muted: {color: colors.inkMuted},
+  rxDownload: {marginTop: verticalScale(10), alignSelf: 'flex-start'},
+  rxDownloadText: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(12),
+    color: colors.linkBlue,
+  },
   adviceBox: {
     backgroundColor: colors.dashBg,
     borderRadius: scale(8),
