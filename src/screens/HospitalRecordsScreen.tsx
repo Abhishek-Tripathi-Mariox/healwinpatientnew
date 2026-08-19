@@ -164,6 +164,11 @@ export const HospitalRecordsScreen: React.FC = () => {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        // flexGrow:0 is essential. A ScrollView with no `style` inside a
+        // flex-column parent expands to fill the remaining height — this
+        // horizontal chip row was consuming most of the screen and pushing
+        // the content down, which looked like a huge blank gap under the tabs.
+        style={styles.tabsBar}
         contentContainerStyle={styles.tabs}>
         {TABS.map(t => (
           <Pressable
@@ -657,6 +662,7 @@ const styles = StyleSheet.create({
     fontSize: scale(15),
     color: colors.textWhite,
   },
+  tabsBar: {flexGrow: 0, flexShrink: 0},
   tabs: {
     paddingHorizontal: spacing.lg,
     paddingVertical: verticalScale(12),
