@@ -2,6 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { SplashScreen } from '../screens/SplashScreen';
+import { WelcomeScreen } from '../screens/WelcomeScreen';
+import { GuestSosScreen } from '../screens/GuestSosScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { AmbulanceTypesScreen } from '../screens/AmbulanceTypesScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -63,6 +65,8 @@ export const RootNavigator: React.FC = () => (
     screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
   >
     <Stack.Screen name="Splash" component={SplashScreen} options={{ animation: 'fade' }} />
+    <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: 'fade' }} />
+    <Stack.Screen name="GuestSos" component={GuestSosScreen} />
     <Stack.Screen name="Home" component={HomeScreen} />
     <Stack.Screen name="AmbulanceTypes" component={AmbulanceTypesScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />

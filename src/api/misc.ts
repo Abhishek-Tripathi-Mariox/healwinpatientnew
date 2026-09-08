@@ -113,6 +113,12 @@ export const coinsApi = {
 };
 
 export interface SosTriggerInput {
+  /**
+   * Who the emergency is for. Omit for the account holder; pass a saved family
+   * member's id to dispatch for them instead. The backend verifies the member
+   * belongs to the caller.
+   */
+  familyMemberId?: string;
   location?: { lat: number; lng: number };
   address?: string;
   type?: string;
@@ -135,6 +141,27 @@ export const sosApi = {
   updateContact: (id: string, c: EmergencyContactInput) => api.put(`/sos/contacts/${id}`, c),
   removeContact: (id: string) => api.del(`/sos/contacts/${id}`),
   history: () => api.get<any[]>('/sos/history'),
+};
+
+/**
+ * Emergency SOS that works WITHOUT logging in.
+ *
+ * In an emergency the last thing a person should face is an OTP screen, so
+ * this posts to the public endpoint (`auth = false` — no token attached) and
+ * lands on the control room's SOS dashboard in real time, exactly like an
+ * authenticated SOS. Name and phone are optional; the location is what matters.
+ */
+export interface GuestSosInput {
+  name?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+}
+
+export const guestSosApi = {
+  call: (input: GuestSosInput) =>
+    api.post<{ id: string }>('/sos-public/call', input, false),
 };
 
 export const supportApi = {

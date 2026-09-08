@@ -1,10 +1,17 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import { BackButton } from '../components';
+import {BackButton} from '../components';
 import {
   BookingIcon,
   ChevronForwardIcon,
@@ -22,12 +29,20 @@ import {
   ShieldCheckIcon,
   WalletIcon,
 } from '../components/icons';
-import { svgs } from '../svgAssets';
-import { useProfile } from '../state/profileStore';
-import { authStore } from '../state/authStore';
-import { cardShadow } from '../theme/shadows';
-import { colors, fonts, radius, scale, spacing, textStyles, verticalScale } from '../theme';
-import type { RootStackParamList } from '../navigation/types';
+import {svgs} from '../svgAssets';
+import {useProfile} from '../state/profileStore';
+import {authStore} from '../state/authStore';
+import {cardShadow} from '../theme/shadows';
+import {
+  colors,
+  fonts,
+  radius,
+  scale,
+  spacing,
+  textStyles,
+  verticalScale,
+} from '../theme';
+import type {RootStackParamList} from '../navigation/types';
 
 interface Row {
   key: string;
@@ -48,62 +63,168 @@ const SECTIONS: Section[] = [
   {
     title: 'Account',
     rows: [
-      { key: 'edit', label: 'Edit Profile', Icon: EditIcon, route: 'EditProfile' },
-      { key: 'membership', label: 'Membership', Icon: ShieldCheckIcon, route: 'Membership' },
-      { key: 'family', label: 'Family Members', Icon: FamilyCareIcon, route: 'Membership' },
-      { key: 'addresses', label: 'Saved Addresses', Icon: MapPinIcon, route: 'AddressList' },
+      {
+        key: 'edit',
+        label: 'Edit Profile',
+        Icon: EditIcon,
+        route: 'EditProfile',
+      },
+      {
+        key: 'membership',
+        label: 'Membership',
+        Icon: ShieldCheckIcon,
+        route: 'Membership',
+      },
+      {
+        key: 'family',
+        label: 'Family Members',
+        Icon: FamilyCareIcon,
+        route: 'Membership',
+      },
+      {
+        key: 'addresses',
+        label: 'Saved Addresses',
+        Icon: MapPinIcon,
+        route: 'AddressList',
+      },
     ],
   },
   {
     title: 'Payments & Rewards',
     rows: [
-      { key: 'credits', label: 'My Credits', Icon: WalletIcon, route: 'MyCredits' },
-      { key: 'coins', label: 'My Coins & Rewards', Icon: WalletIcon, route: 'MyCoins' },
+      {
+        key: 'credits',
+        label: 'My Credits',
+        Icon: WalletIcon,
+        route: 'MyCredits',
+      },
+      {
+        key: 'coins',
+        label: 'My Coins & Rewards',
+        Icon: WalletIcon,
+        route: 'MyCoins',
+      },
     ],
   },
   {
     title: 'My Activity',
     rows: [
-      { key: 'bookings', label: 'My Bookings', Icon: BookingIcon, route: 'Bookings' },
-      { key: 'orders', label: 'My Orders (Consult / Lab / Pharmacy)', Icon: BookingIcon, route: 'MyOrders' },
+      {
+        key: 'bookings',
+        label: 'My Bookings',
+        Icon: BookingIcon,
+        route: 'Bookings',
+      },
+      {
+        key: 'orders',
+        label: 'My Orders (Consult / Lab / Pharmacy)',
+        Icon: BookingIcon,
+        route: 'MyOrders',
+      },
     ],
   },
   {
     title: 'Health Services',
     rows: [
-      { key: 'doctor', label: 'Consult a Doctor', Icon: DoctorIcon, route: 'DoctorList' },
-      { key: 'lab', label: 'Lab Tests', Icon: FlaskIcon, route: 'LabTests' },
-      { key: 'pharmacy', label: 'Pharmacy', Icon: PharmacyIcon, route: 'PharmacyHome' },
+      {
+        key: 'doctor',
+        label: 'Consult a Doctor',
+        Icon: DoctorIcon,
+        route: 'DoctorList',
+      },
+      {key: 'lab', label: 'Lab Tests', Icon: FlaskIcon, route: 'LabTests'},
+      {
+        key: 'pharmacy',
+        label: 'Pharmacy',
+        Icon: PharmacyIcon,
+        route: 'PharmacyHome',
+      },
     ],
   },
   {
     title: 'Health Records',
     rows: [
-      { key: 'hospital', label: 'Hospital Records (Appointments, Bills, Reports)', Icon: FileDocIcon, route: 'HospitalRecords' },
-      { key: 'records', label: 'Medical Records', Icon: FileDocIcon, route: 'MedicalRecords' },
-      { key: 'insurance', label: 'My Insurance', Icon: FileDocIcon, route: 'Insurance' },
-      { key: 'familyExpenses', label: 'Family Expenses', Icon: FamilyCareIcon, route: 'FamilyExpenses' },
-      { key: 'documents', label: 'My Documents', Icon: FileDocIcon, route: 'Documents' },
+      {
+        key: 'hospital',
+        label: 'Hospital Records (Appointments, Bills, Reports)',
+        Icon: FileDocIcon,
+        route: 'HospitalRecords',
+      },
+      {
+        key: 'records',
+        label: 'Medical Records',
+        Icon: FileDocIcon,
+        route: 'MedicalRecords',
+      },
+      {
+        key: 'insurance',
+        label: 'My Insurance',
+        Icon: FileDocIcon,
+        route: 'Insurance',
+      },
+      {
+        key: 'familyExpenses',
+        label: 'Family Expenses',
+        Icon: FamilyCareIcon,
+        route: 'FamilyExpenses',
+      },
+      {
+        key: 'documents',
+        label: 'My Documents',
+        Icon: FileDocIcon,
+        route: 'Documents',
+      },
     ],
   },
   {
     title: 'Safety & Support',
     rows: [
-      { key: 'firstaid', label: 'First Aid & Emergency Guides', Icon: ShieldCheckIcon, route: 'FirstAid' },
-      { key: 'emergency', label: 'Emergency Contacts', Icon: ShieldCheckIcon, route: 'EmergencyContacts' },
-      { key: 'notifications', label: 'Notifications', Icon: BookingIcon, route: 'Notifications' },
-      { key: 'support', label: 'Help & Support', Icon: HelpIcon, route: 'Support' },
+      {
+        key: 'firstaid',
+        label: 'First Aid & Emergency Guides',
+        Icon: ShieldCheckIcon,
+        route: 'FirstAid',
+      },
+      {
+        key: 'emergency',
+        label: 'Emergency Contacts',
+        Icon: ShieldCheckIcon,
+        route: 'EmergencyContacts',
+      },
+      {
+        key: 'notifications',
+        label: 'Notifications',
+        Icon: BookingIcon,
+        route: 'Notifications',
+      },
+      {
+        key: 'support',
+        label: 'Help & Support',
+        Icon: HelpIcon,
+        route: 'Support',
+      },
     ],
   },
   {
     title: 'Settings',
     rows: [
-      { key: 'settings', label: 'Settings', Icon: SettingsIcon, route: 'Settings' },
+      {
+        key: 'settings',
+        label: 'Settings',
+        Icon: SettingsIcon,
+        route: 'Settings',
+      },
     ],
   },
 ];
 
-const LOGOUT: Row = { key: 'logout', label: 'Logout', Icon: LogoutIcon, route: 'Login', danger: true };
+const LOGOUT: Row = {
+  key: 'logout',
+  label: 'Logout',
+  Icon: LogoutIcon,
+  route: 'Welcome',
+  danger: true,
+};
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -116,16 +237,19 @@ export const ProfileScreen: React.FC = () => {
   const onRowPress = async (row: Row) => {
     if (row.key === 'logout') {
       await authStore.logout();
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      navigation.reset({index: 0, routes: [{name: 'Welcome'}]});
       return;
     }
-    if (row.route) navigation.navigate(row.route as never);
+    if (row.route) {
+      navigation.navigate(row.route as never);
+    }
   };
 
   return (
     <View style={styles.root}>
       {/* Top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + verticalScale(8) }]}>
+      <View
+        style={[styles.topBar, {paddingTop: insets.top + verticalScale(8)}]}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.topTitle}>Profile</Text>
         <View style={styles.topSpacer} />
@@ -133,15 +257,20 @@ export const ProfileScreen: React.FC = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + verticalScale(24) }}
-      >
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + verticalScale(24),
+        }}>
         {/* Identity */}
         <View style={styles.identity}>
           <View style={[styles.avatar, cardShadow]}>
             {profile.photo ? (
-              <Image source={{ uri: profile.photo }} style={styles.avatarImg} />
+              <Image source={{uri: profile.photo}} style={styles.avatarImg} />
             ) : (
-              <Avatar width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
+              <Avatar
+                width="100%"
+                height="100%"
+                preserveAspectRatio="xMidYMid slice"
+              />
             )}
           </View>
           <Text style={styles.name}>{profile.name}</Text>
@@ -150,7 +279,7 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Grouped action list */}
-        {SECTIONS.map((section) => (
+        {SECTIONS.map(section => (
           <View key={section.title}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <View style={[styles.card, cardShadow]}>
@@ -158,13 +287,12 @@ export const ProfileScreen: React.FC = () => {
                 <Pressable
                   key={row.key}
                   onPress={() => onRowPress(row)}
-                  style={({ pressed }) => [
+                  style={({pressed}) => [
                     styles.row,
                     i < section.rows.length - 1 && styles.rowDivider,
                     pressed && styles.rowPressed,
-                  ]}
-                >
-                  <View style={[styles.rowIcon, { backgroundColor: '#EAF4FB' }]}>
+                  ]}>
+                  <View style={[styles.rowIcon, {backgroundColor: '#EAF4FB'}]}>
                     <row.Icon size={scale(20)} color={colors.textPrimary} />
                   </View>
                   <Text style={styles.rowLabel}>{row.label}</Text>
@@ -176,15 +304,16 @@ export const ProfileScreen: React.FC = () => {
         ))}
 
         {/* Logout (standalone) */}
-        <View style={[styles.card, cardShadow, { marginTop: verticalScale(20) }]}>
+        <View style={[styles.card, cardShadow, {marginTop: verticalScale(20)}]}>
           <Pressable
             onPress={() => onRowPress(LOGOUT)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <View style={[styles.rowIcon, { backgroundColor: '#FDECEC' }]}>
+            style={({pressed}) => [styles.row, pressed && styles.rowPressed]}>
+            <View style={[styles.rowIcon, {backgroundColor: '#FDECEC'}]}>
               <LogoutIcon size={scale(20)} color={colors.brandRed} />
             </View>
-            <Text style={[styles.rowLabel, { color: colors.brandRed }]}>{LOGOUT.label}</Text>
+            <Text style={[styles.rowLabel, {color: colors.brandRed}]}>
+              {LOGOUT.label}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -229,7 +358,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
-  avatarImg: { width: '100%', height: '100%' },
+  avatarImg: {width: '100%', height: '100%'},
   name: {
     ...textStyles.name,
     color: colors.textPrimary,

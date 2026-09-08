@@ -39,7 +39,9 @@ export const SplashScreen: React.FC = () => {
     if (!minTimePassed || status === 'loading') return;
     navigation.reset({
       index: 0,
-      routes: [{ name: status === 'authed' ? 'Home' : 'Login' }],
+      // Not logged in -> the Welcome gate, which offers Emergency SOS
+      // alongside Login. An emergency must not be stuck behind an OTP.
+      routes: [{ name: status === 'authed' ? 'Home' : 'Welcome' }],
     });
   }, [minTimePassed, status, navigation]);
 

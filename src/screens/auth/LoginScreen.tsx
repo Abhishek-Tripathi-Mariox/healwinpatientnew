@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, {useState} from 'react';
+import {Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import { svgs } from '../../svgAssets';
-import { colors, fonts, scale, spacing, verticalScale } from '../../theme';
-import { floatingShadow } from '../../theme/shadows';
-import { authApi } from '../../api/auth';
-import { onlyDigits } from '../../utils/validation';
-import type { RootStackParamList } from '../../navigation/types';
+import {svgs} from '../../svgAssets';
+import {colors, fonts, scale, spacing, verticalScale} from '../../theme';
+import {floatingShadow} from '../../theme/shadows';
+import {authApi} from '../../api/auth';
+import {onlyDigits} from '../../utils/validation';
+import type {RootStackParamList} from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -24,7 +24,9 @@ export const LoginScreen: React.FC = () => {
   const LogoMark = svgs.logoMark;
 
   const sendOtp = async () => {
-    if (!valid || loading) return;
+    if (!valid || loading) {
+      return;
+    }
     setError('');
     setLoading(true);
     const mobileNumber = phone.replace(/\D/g, '');
@@ -43,12 +45,28 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + verticalScale(40), paddingBottom: insets.bottom + verticalScale(20) }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          paddingTop: insets.top + verticalScale(40),
+          paddingBottom: insets.bottom + verticalScale(20),
+        },
+      ]}>
       <View style={styles.hero}>
         <View style={[styles.mark, floatingShadow]}>
-          <LogoMark width={scale(72)} height={scale(72)} preserveAspectRatio="xMidYMid meet" />
+          <LogoMark
+            width={scale(72)}
+            height={scale(72)}
+            preserveAspectRatio="xMidYMid meet"
+          />
         </View>
-        <Logo width={scale(200)} height={scale(40)} preserveAspectRatio="xMidYMid meet" style={{ marginTop: verticalScale(20) }} />
+        <Logo
+          width={scale(200)}
+          height={scale(40)}
+          preserveAspectRatio="xMidYMid meet"
+          style={{marginTop: verticalScale(20)}}
+        />
         <Text style={styles.welcome}>Welcome to HealWin</Text>
         <Text style={styles.tag}>Healthcare at your doorstep</Text>
       </View>
@@ -59,7 +77,7 @@ export const LoginScreen: React.FC = () => {
           <Text style={styles.cc}>+91</Text>
           <TextInput
             value={phone}
-            onChangeText={(t) => setPhone(onlyDigits(t))}
+            onChangeText={t => setPhone(onlyDigits(t))}
             placeholder="10-digit mobile number"
             placeholderTextColor={colors.placeholder}
             keyboardType="number-pad"
@@ -73,20 +91,58 @@ export const LoginScreen: React.FC = () => {
         <Pressable
           disabled={!valid || loading}
           onPress={sendOtp}
-          style={({ pressed }) => [styles.cta, (!valid || loading) && styles.ctaDisabled, pressed && valid && styles.pressed]}
-        >
-          <Text style={styles.ctaText}>{loading ? 'Sending…' : 'Send OTP'}</Text>
+          style={({pressed}) => [
+            styles.cta,
+            (!valid || loading) && styles.ctaDisabled,
+            pressed && valid && styles.pressed,
+          ]}>
+          <Text style={styles.ctaText}>
+            {loading ? 'Sending…' : 'Send OTP'}
+          </Text>
         </Pressable>
 
-        <Text style={styles.terms}>By continuing, you agree to our Terms & Privacy</Text>
+        <Text style={styles.terms}>
+          By continuing, you agree to our Terms & Privacy
+        </Text>
+
+        {/* Escape hatch: an emergency must be reachable from here too, not only
+            from the Welcome gate. Someone who lands straight on Login (deep
+            link, old navigation state) must never have to sign in first. */}
+        <Pressable
+          style={styles.sosLink}
+          onPress={() => navigation.navigate('GuestSos')}
+          accessibilityRole="button"
+          accessibilityLabel="Emergency SOS without logging in">
+          <Text style={styles.sosLinkText}>
+            🚨 Emergency? Send SOS without login
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg },
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+  },
+  sosLink: {
+    marginTop: verticalScale(18),
+    alignSelf: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.brandRed,
+    borderRadius: scale(12),
+    paddingHorizontal: scale(18),
+    paddingVertical: verticalScale(11),
+  },
+  sosLinkText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(13),
+    color: colors.brandRed,
+  },
+  hero: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   mark: {
     width: scale(108),
     height: scale(108),
@@ -107,7 +163,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     marginTop: verticalScale(6),
   },
-  form: { paddingBottom: verticalScale(10) },
+  form: {paddingBottom: verticalScale(10)},
   label: {
     fontFamily: fonts.medium,
     fontSize: scale(13),
@@ -145,9 +201,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: verticalScale(20),
   },
-  ctaDisabled: { backgroundColor: '#A9BEE6' },
-  pressed: { opacity: 0.85 },
-  ctaText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },
+  ctaDisabled: {backgroundColor: '#A9BEE6'},
+  pressed: {opacity: 0.85},
+  ctaText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(16),
+    color: colors.textWhite,
+  },
   error: {
     fontFamily: fonts.medium,
     fontSize: scale(12),

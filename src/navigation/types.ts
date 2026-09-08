@@ -4,6 +4,10 @@ import type { Address } from '../state/addressStore';
 
 /** Route param list for the root native stack. */
 export type RootStackParamList = {
+  /** Entry point when NOT logged in: choose Emergency SOS or Login. */
+  Welcome: undefined;
+  /** Emergency SOS that needs no account. */
+  GuestSos: undefined;
   Splash: undefined;
   Home: undefined;
   AmbulanceTypes: undefined;
