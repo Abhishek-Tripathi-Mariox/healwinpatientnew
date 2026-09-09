@@ -19,6 +19,7 @@ import { SelectAmbulanceScreen } from '../screens/SelectAmbulanceScreen';
 import { ExecutiveCallScreen } from '../screens/ExecutiveCallScreen';
 import { TrackingScreen } from '../screens/TrackingScreen';
 import { MembershipScreen } from '../screens/MembershipScreen';
+import { FamilyMembersScreen } from '../screens/FamilyMembersScreen';
 import { UploadDocumentScreen } from '../screens/UploadDocumentScreen';
 import { DocumentsScreen } from '../screens/DocumentsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
@@ -82,6 +83,7 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="ExecutiveCall" component={ExecutiveCallScreen} />
     <Stack.Screen name="Tracking" component={TrackingScreen} />
     <Stack.Screen name="Membership" component={MembershipScreen} />
+    <Stack.Screen name="FamilyMembers" component={FamilyMembersScreen} />
     <Stack.Screen name="UploadDocument" component={UploadDocumentScreen} />
     <Stack.Screen name="Documents" component={DocumentsScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />

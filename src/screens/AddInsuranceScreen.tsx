@@ -6,7 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { BackButton } from '../components';
-import { insuranceApi, type InsurancePayerOption } from '../api/insurance';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { insuranceApi, type InsurancePayerOption, type PickedDocument } from '../api/insurance';
 import { useProfile } from '../state/profileStore';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -25,8 +26,85 @@ export const AddInsuranceScreen: React.FC = () => {
   const [policyNumber, setPolicyNumber] = useState('');
   const [holderName, setHolderName] = useState('');
   const [sumInsured, setSumInsured] = useState('');
+  // Two distinct attachments: the policy paper (required) and the cashless
+  // card (optional). Kept apart so the requirement is obvious in the form
+  // rather than a rule the server explains after a failed save.
+  const [policyDocs, setPolicyDocs] = useState<PickedDocument[]>([]);
+  const [cards, setCards] = useState<PickedDocument[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Most people have the paper in hand or a photo of it in the gallery, so
+  // both are offered. Two files each — front and back.
+  const pick = async (
+    from: 'camera' | 'gallery',
+    into: 'policy' | 'card',
+  ) => {
+    const current = into === 'policy' ? policyDocs : cards;
+    if (current.length >= 2) {
+      setError('You can attach up to 2 files here.');
+      return;
+    }
+    const opts = { mediaType: 'photo' as const, quality: 0.8 as const, selectionLimit: 1 };
+    const res = from === 'camera' ? await launchCamera(opts) : await launchImageLibrary(opts);
+    if (res.didCancel || !res.assets?.length) return;
+    const a = res.assets[0];
+    if (!a.uri) return;
+    setError('');
+    const picked: PickedDocument = {
+      uri: a.uri,
+      name: a.fileName || `${into}-${Date.now()}.jpg`,
+      type: a.type || 'image/jpeg',
+    };
+    if (into === 'policy') setPolicyDocs((d) => [...d, picked]);
+    else setCards((d) => [...d, picked]);
+  };
+
+  const removeDoc = (into: 'policy' | 'card', i: number) => {
+    if (into === 'policy') setPolicyDocs((d) => d.filter((_, idx) => idx !== i));
+    else setCards((d) => d.filter((_, idx) => idx !== i));
+  };
+
+  /** One attachment block, used for both the policy paper and the card. */
+  const DocSection = ({
+    into, label, hint, required, items,
+  }: {
+    into: 'policy' | 'card';
+    label: string;
+    hint: string;
+    required?: boolean;
+    items: PickedDocument[];
+  }) => (
+    <>
+      <Text style={styles.label}>
+        {label}
+        {required ? ' *' : ' (optional)'}
+      </Text>
+      <Text style={styles.hint}>{hint}</Text>
+      {items.length > 0 && (
+        <View style={styles.docList}>
+          {items.map((d, i) => (
+            <View key={`${d.uri}-${i}`} style={styles.docRow}>
+              <Text numberOfLines={1} style={styles.docName}>{d.name}</Text>
+              <Pressable onPress={() => removeDoc(into, i)} hitSlop={8}>
+                <Text style={styles.docRemove}>Remove</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+      {items.length < 2 && (
+        <View style={styles.docActions}>
+          <Pressable style={styles.docBtn} onPress={() => pick('camera', into)}>
+            <Text style={styles.docBtnText}>Take photo</Text>
+          </Pressable>
+          <Pressable style={styles.docBtn} onPress={() => pick('gallery', into)}>
+            <Text style={styles.docBtnText}>Choose from gallery</Text>
+          </Pressable>
+        </View>
+      )}
+    </>
+  );
 
   useEffect(() => {
     insuranceApi
@@ -48,15 +126,23 @@ export const AddInsuranceScreen: React.FC = () => {
       setError('Please enter your policy number.');
       return;
     }
+    if (policyDocs.length === 0) {
+      setError('Please attach your policy document — the card alone is not enough.');
+      return;
+    }
     setError('');
     setSaving(true);
     try {
-      await insuranceApi.add({
-        payerId,
-        policyNumber: policyNumber.trim(),
-        holderName: holderName.trim() || undefined,
-        sumInsured: sumInsured ? Number(sumInsured) : undefined,
-      });
+      await insuranceApi.add(
+        {
+          payerId,
+          policyNumber: policyNumber.trim(),
+          holderName: holderName.trim() || undefined,
+          sumInsured: sumInsured ? Number(sumInsured) : undefined,
+        },
+        policyDocs,
+        cards,
+      );
       navigation.goBack();
     } catch (e: any) {
       setError(e?.message || 'Could not save your policy. Please try again.');
@@ -129,6 +215,21 @@ export const AddInsuranceScreen: React.FC = () => {
           processed by the hospital.
         </Text>
 
+        <DocSection
+          into="policy"
+          label="Policy Document"
+          required
+          hint="The policy paper or schedule showing your policy number, sum insured and validity. Billing verifies your cover against this."
+          items={policyDocs}
+        />
+
+        <DocSection
+          into="card"
+          label="Insurance / TPA Card"
+          hint="Helpful at the billing desk, but not required — it does not show your cover amount."
+          items={cards}
+        />
+
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
@@ -161,6 +262,20 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.medium, fontSize: scale(13), color: '#5B5B5B' },
   chipTextActive: { color: colors.textWhite },
   error: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.brandRed, marginTop: verticalScale(14) },
+  docList: { marginTop: verticalScale(10), gap: verticalScale(6) },
+  docRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F1F1F4', borderRadius: scale(8), paddingHorizontal: scale(12),
+    height: verticalScale(40),
+  },
+  docName: { flex: 1, fontFamily: fonts.regular, fontSize: scale(12.5), color: colors.textBlack, marginRight: scale(10) },
+  docRemove: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.brandRed },
+  docActions: { flexDirection: 'row', gap: scale(10), marginTop: verticalScale(10) },
+  docBtn: {
+    flex: 1, height: verticalScale(42), borderRadius: scale(8), borderWidth: 1,
+    borderColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center',
+  },
+  docBtnText: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.directionsBlue },
   save: { height: verticalScale(50), borderRadius: scale(12), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(24) },
   pressed: { opacity: 0.85 },
   saveText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },

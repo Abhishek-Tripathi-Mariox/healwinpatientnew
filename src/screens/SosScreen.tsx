@@ -44,6 +44,21 @@ export const SosScreen: React.FC = () => {
   // callback number rather than the account holder's.
   const [family, setFamily] = useState<FamilyMember[]>([]);
   const [forMemberId, setForMemberId] = useState<string | null>(null);
+  /**
+   * Who ELSE gets told. The control room is always alerted — that is what an
+   * SOS is — so this is only the family side: none, one, or everyone.
+   */
+  const [notifyIds, setNotifyIds] = useState<string[]>([]);
+  /**
+   * Whether the control room is told. Off = a private alert to family with no
+   * ambulance — a real thing people want, but never the default and never
+   * implied.
+   */
+  const [alertControlRoom, setAlertControlRoom] = useState(true);
+  const toggleNotify = (id: string) =>
+    setNotifyIds(ids =>
+      ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id],
+    );
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [people, setPeople] = useState('');
@@ -161,6 +176,8 @@ export const SosScreen: React.FC = () => {
         .trigger({
           submissionType: mode === 'call' ? 'CALL' : 'FORM',
           familyMemberId: forMemberId || undefined,
+          notifyFamilyMemberIds: notifyIds.length ? notifyIds : undefined,
+          notifyControlRoom: alertControlRoom,
           type: mode === 'call' ? 'Medical Emergency' : type,
           name: name.trim() || profile.name || undefined,
           description: desc || undefined,
@@ -196,8 +213,94 @@ export const SosScreen: React.FC = () => {
           title="Emergency SOS"
           onBack={() => navigation.goBack()}
         />
-        <View style={styles.chooseWrap}>
+        <ScrollView
+          contentContainerStyle={styles.chooseWrap}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
           <Text style={styles.chooseTitle}>How do you need help?</Text>
+
+          {/* Recipients live HERE, not on the detail form: "SOS Call" goes
+              straight to the countdown and never opens the form, so a picker
+              there could not be reached from the fast path at all. */}
+          {family.length > 0 && (
+            <View style={styles.alsoWrap}>
+              <Text style={styles.alsoLabel}>Who should be alerted?</Text>
+
+              <Pressable
+                onPress={() => setAlertControlRoom(v => !v)}
+                style={[styles.crRow, !alertControlRoom && styles.crRowOff]}>
+                <Text style={styles.crCheck}>
+                  {alertControlRoom ? '☑' : '☐'}
+                </Text>
+                <View style={{flex: 1}}>
+                  <Text style={styles.crTitle}>
+                    Healwin control room (sends an ambulance)
+                  </Text>
+                  {!alertControlRoom && (
+                    <Text style={styles.crWarn}>
+                      No ambulance will be sent — only the people you pick below
+                      will be told.
+                    </Text>
+                  )}
+                </View>
+              </Pressable>
+
+              <Text style={styles.alsoHint}>
+                {alertControlRoom
+                  ? 'Also tell your family:'
+                  : 'Tell only these people:'}
+              </Text>
+              <View style={styles.chips}>
+                <Pressable
+                  onPress={() => setNotifyIds([])}
+                  style={[
+                    styles.chip,
+                    notifyIds.length === 0 && styles.chipActive,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      notifyIds.length === 0 && styles.chipTextActive,
+                    ]}>
+                    Nobody else
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setNotifyIds(family.map(m => m.id))}
+                  style={[
+                    styles.chip,
+                    notifyIds.length === family.length && styles.chipActive,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      notifyIds.length === family.length &&
+                        styles.chipTextActive,
+                    ]}>
+                    All family ({family.length})
+                  </Text>
+                </Pressable>
+                {family.map(m => (
+                  <Pressable
+                    key={m.id}
+                    onPress={() => toggleNotify(m.id)}
+                    style={[
+                      styles.chip,
+                      notifyIds.includes(m.id) && styles.chipActive,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        notifyIds.includes(m.id) && styles.chipTextActive,
+                      ]}>
+                      {notifyIds.includes(m.id) ? '✓ ' : ''}
+                      {m.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* SOS Call — one tap, direct ambulance */}
           <Pressable
@@ -207,6 +310,16 @@ export const SosScreen: React.FC = () => {
               pressed && styles.pressed,
             ]}
             onPress={() => {
+              // Nowhere to send it: the control room is off and nobody is
+              // picked. Silently "sending" an SOS to no one is the single
+              // worst thing this screen could do.
+              if (!alertControlRoom && notifyIds.length === 0) {
+                AppAlert.alert(
+                  'Nobody would be alerted',
+                  'Turn the control room back on, or pick at least one family member.',
+                );
+                return;
+              }
               setMode('call');
               setPhase('countdown');
             }}>
@@ -233,6 +346,13 @@ export const SosScreen: React.FC = () => {
               pressed && styles.pressed,
             ]}
             onPress={() => {
+              if (!alertControlRoom && notifyIds.length === 0) {
+                AppAlert.alert(
+                  'Nobody would be alerted',
+                  'Turn the control room back on, or pick at least one family member.',
+                );
+                return;
+              }
               setMode('help');
               setPhase('form');
             }}>
@@ -246,7 +366,7 @@ export const SosScreen: React.FC = () => {
               </Text>
             </View>
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -289,6 +409,17 @@ export const SosScreen: React.FC = () => {
               : `Dispatching SOS in ${seconds}s…`}
           </Text>
           <Text style={styles.countSub}>Dispatch to your current location</Text>
+          <Text style={styles.countSub}>
+            {alertControlRoom
+              ? notifyIds.length === 0
+                ? 'Alerting Healwin control room'
+                : `Alerting Healwin control room + ${
+                    notifyIds.length
+                  } family member${notifyIds.length === 1 ? '' : 's'}`
+              : `Alerting ${notifyIds.length} family member${
+                  notifyIds.length === 1 ? '' : 's'
+                } only — no ambulance`}
+          </Text>
           <Pressable
             style={styles.cancel}
             onPress={() => setPhase(mode === 'call' ? 'choose' : 'form')}>
@@ -540,6 +671,43 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     marginTop: verticalScale(16),
     marginBottom: verticalScale(8),
+  },
+  alsoWrap: {marginBottom: verticalScale(18)},
+  crRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: scale(8),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(10),
+    backgroundColor: '#EAF1FE',
+    marginBottom: verticalScale(8),
+  },
+  crRowOff: {backgroundColor: '#FDECEC'},
+  crCheck: {fontSize: scale(16), color: colors.textBlack},
+  crTitle: {
+    fontFamily: fonts.medium,
+    fontSize: scale(12.5),
+    color: colors.textBlack,
+  },
+  crWarn: {
+    fontFamily: fonts.medium,
+    fontSize: scale(11.5),
+    color: colors.brandRed,
+    marginTop: verticalScale(2),
+    lineHeight: scale(16),
+  },
+  alsoLabel: {
+    fontFamily: fonts.medium,
+    fontSize: scale(13),
+    color: '#4A4A4A',
+    marginBottom: verticalScale(2),
+  },
+  alsoHint: {
+    fontFamily: fonts.regular,
+    fontSize: scale(11.5),
+    color: colors.inkMuted,
+    marginBottom: verticalScale(6),
   },
   chips: {flexDirection: 'row', flexWrap: 'wrap', gap: scale(8)},
   chip: {

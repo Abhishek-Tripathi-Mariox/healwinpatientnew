@@ -66,15 +66,22 @@ export interface ServerMembershipPlan {
   price: number;
   durationMonths: number;
   concessionPercent?: number;
+  /** 0 = unlimited. */
+  maxFamilyMembers?: number;
   bullets: string[];
 }
 
 export interface ServerUserMembership {
   _id: string;
+  /** Which plan this membership is on — lets the list mark the current one. */
+  planId?: string;
   planName: string;
   tier: 'silver' | 'gold';
   enrolledAt?: string;
   validUpto?: string;
+  daysRemaining?: number;
+  concessionPercent?: number;
+  maxFamilyMembers?: number;
   familyCount?: number;
   status?: string;
 }
@@ -85,18 +92,50 @@ export const membershipApi = {
       (Array.isArray(d) ? d : d?.items ?? []) as ServerMembershipPlan[],
     ),
   active: () => api.get<ServerUserMembership | null>('/patient/membership'),
-  enroll: (planId: string) => api.post('/patient/membership/enroll', { planId }),
+  enroll: (planId: string) =>
+    api.post<{
+      _id: string;
+      planName: string;
+      validUpto: string;
+      amountDue?: number;
+      concessionPercent?: number;
+      extendedFromExisting?: boolean;
+      message?: string;
+    }>('/patient/membership/enroll', { planId }),
 };
 
+export interface TopUpOrder {
+  orderId: string;
+  amount: number; // paise, as the gateway states it
+  currency: string;
+  keyId: string; // publishable key for the checkout sheet
+}
+
+export interface TopUpConfirmation {
+  credited: boolean;
+  balance: number;
+  amount?: number;
+  reason?: string;
+}
+
+/**
+ * Wallet.
+ *
+ * Top-up is deliberately two calls with a real payment in between. The old
+ * single `/wallet/add` just credited whatever the app asked for, so the amount
+ * is no longer something the client gets to state — `confirmTopUp` returns the
+ * balance the SERVER arrived at after verifying the payment.
+ */
 export const walletApi = {
   balance: () => api.get<{ balance: number }>('/wallet'),
   transactions: () =>
     api.get<any>('/payments/transactions').then((d) =>
       Array.isArray(d) ? d : d?.items ?? d?.transactions ?? [],
     ),
-  // Dummy top-up (no real gateway yet) — credits the wallet instantly.
-  addMoney: (amount: number, referenceId?: string) =>
-    api.post<{ balance: number }>('/wallet/add', { amount, referenceId }),
+  startTopUp: (amount: number) =>
+    api.post<TopUpOrder>('/wallet/topup/start', { amount }),
+  confirmTopUp: (p: { orderId: string; paymentId: string; signature: string }) =>
+    api.post<TopUpConfirmation>('/wallet/topup/confirm', p),
 };
 
 const toTxnList = (d: any) => (Array.isArray(d) ? d : d?.items ?? d?.transactions ?? []);
@@ -119,6 +158,16 @@ export interface SosTriggerInput {
    * belongs to the caller.
    */
   familyMemberId?: string;
+  /**
+   * Family members to alert as well as the control room. Empty = only the
+   * control room is told, which is the default.
+   */
+  notifyFamilyMemberIds?: string[];
+  /**
+   * false = tell family only, do NOT alert the control room. No ambulance is
+   * dispatched. Defaults to true.
+   */
+  notifyControlRoom?: boolean;
   location?: { lat: number; lng: number };
   address?: string;
   type?: string;

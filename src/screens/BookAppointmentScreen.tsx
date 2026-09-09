@@ -1,21 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AppAlert } from '../services/appAlert';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, {useEffect, useState} from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {AppAlert} from '../services/appAlert';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-import { ScreenHeader } from '../components';
-import { VoiceTextInput } from '../components/VoiceTextInput';
-import { doctorsApi } from '../api/catalog';
-import { hmsApi } from '../api/hms';
-import { colors, fonts, scale, spacing, verticalScale } from '../theme';
-import { cardShadow } from '../theme/shadows';
-import type { RootStackParamList } from '../navigation/types';
+import {ScreenHeader} from '../components';
+import {VoiceTextInput} from '../components/VoiceTextInput';
+import {doctorsApi} from '../api/catalog';
+import {hmsApi} from '../api/hms';
+import {colors, fonts, scale, spacing, verticalScale} from '../theme';
+import {cardShadow} from '../theme/shadows';
+import type {RootStackParamList} from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'BookAppointment'>;
-interface Doc { id: string; name: string; speciality: string }
+interface Doc {
+  id: string;
+  name: string;
+  speciality: string;
+}
 
 export const BookAppointmentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -34,7 +45,7 @@ export const BookAppointmentScreen: React.FC = () => {
 
   // Slot availability (when the doctor publishes a schedule).
   const [hasSchedule, setHasSchedule] = useState(false);
-  const [slots, setSlots] = useState<{ time: string; iso: string }[]>([]);
+  const [slots, setSlots] = useState<{time: string; iso: string}[]>([]);
   const [slotIso, setSlotIso] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -48,11 +59,19 @@ export const BookAppointmentScreen: React.FC = () => {
     }
     let alive = true;
     setLoadingSlots(true);
-    const dateStr = when.toISOString().slice(0, 10);
+    // LOCAL date, not toISOString(). IST is UTC+5:30, so any local time
+    // before 05:30 converts to the PREVIOUS calendar day in UTC — which
+    // silently asked for the wrong day's slots.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(
+      when.getDate(),
+    )}`;
     hmsApi
       .doctorSlots(doctorId, dateStr)
-      .then((r) => {
-        if (!alive) return;
+      .then(r => {
+        if (!alive) {
+          return;
+        }
         setHasSchedule(!!r.hasSchedule);
         setSlots(r.slots || []);
         setSlotIso(null);
@@ -73,10 +92,14 @@ export const BookAppointmentScreen: React.FC = () => {
   useEffect(() => {
     doctorsApi
       .list()
-      .then((list) =>
+      .then(list =>
         setDoctors(
           (list || [])
-            .map((d: any) => ({ id: d._id || d.id, name: d.name || '', speciality: d.speciality || '' }))
+            .map((d: any) => ({
+              id: d._id || d.id,
+              name: d.name || '',
+              speciality: d.speciality || '',
+            }))
             .filter((d: Doc) => d.id),
         ),
       )
@@ -87,11 +110,17 @@ export const BookAppointmentScreen: React.FC = () => {
   const onPicked = (event: any, selected?: Date) => {
     const mode = picker;
     setPicker(null);
-    if (event?.type === 'dismissed' || !selected) return;
-    setWhen((prev) => {
+    if (event?.type === 'dismissed' || !selected) {
+      return;
+    }
+    setWhen(prev => {
       const next = new Date(prev);
       if (mode === 'date') {
-        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+        next.setFullYear(
+          selected.getFullYear(),
+          selected.getMonth(),
+          selected.getDate(),
+        );
       } else {
         next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
       }
@@ -100,9 +129,14 @@ export const BookAppointmentScreen: React.FC = () => {
   };
 
   const submit = async () => {
-    if (saving) return;
+    if (saving) {
+      return;
+    }
     if (!doctorId) {
-      AppAlert.alert('Select a doctor', 'Please choose a doctor for your appointment.');
+      AppAlert.alert(
+        'Select a doctor',
+        'Please choose a doctor for your appointment.',
+      );
       return;
     }
     if (hasSchedule && !slotIso) {
@@ -119,8 +153,10 @@ export const BookAppointmentScreen: React.FC = () => {
       const token = res?.tokenNumber;
       AppAlert.alert(
         'Appointment booked',
-        token ? `Your queue token is ${token}. See it under Hospital Records → Appointments.` : 'Your appointment is booked.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
+        token
+          ? `Your queue token is ${token}. See it under Hospital Records → Appointments.`
+          : 'Your appointment is booked.',
+        [{text: 'OK', onPress: () => navigation.goBack()}],
       );
     } catch (e: any) {
       AppAlert.alert('Could not book', e?.message || 'Please try again.');
@@ -129,41 +165,70 @@ export const BookAppointmentScreen: React.FC = () => {
     }
   };
 
-  const fmtDate = when.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-  const fmtTime = when.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = when.toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const fmtTime = when.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Book OPD Appointment" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + verticalScale(30) }]}>
+      <ScreenHeader
+        title="Book OPD Appointment"
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {paddingBottom: insets.bottom + verticalScale(30)},
+        ]}>
         <Text style={styles.label}>Choose Doctor</Text>
         {loadingDocs ? (
-          <ActivityIndicator color={colors.brandRed} style={{ marginTop: verticalScale(16) }} />
+          <ActivityIndicator
+            color={colors.brandRed}
+            style={{marginTop: verticalScale(16)}}
+          />
         ) : doctors.length === 0 ? (
           <Text style={styles.empty}>No doctors available right now.</Text>
         ) : (
-          doctors.map((d) => (
+          doctors.map(d => (
             <Pressable
               key={d.id}
               onPress={() => setDoctorId(d.id)}
-              style={[styles.doc, cardShadow, doctorId === d.id && styles.docActive]}
-            >
-              <View style={{ flex: 1 }}>
+              style={[
+                styles.doc,
+                cardShadow,
+                doctorId === d.id && styles.docActive,
+              ]}>
+              <View style={{flex: 1}}>
                 <Text style={styles.docName}>{d.name}</Text>
-                {!!d.speciality && <Text style={styles.docSpec}>{d.speciality}</Text>}
+                {!!d.speciality && (
+                  <Text style={styles.docSpec}>{d.speciality}</Text>
+                )}
               </View>
-              <View style={[styles.radio, doctorId === d.id && styles.radioOn]} />
+              <View
+                style={[styles.radio, doctorId === d.id && styles.radioOn]}
+              />
             </Pressable>
           ))
         )}
 
         <Text style={styles.label}>{hasSchedule ? 'Date' : 'Date & Time'}</Text>
         <View style={styles.row}>
-          <Pressable style={[styles.pickBtn, cardShadow]} onPress={() => setPicker('date')}>
+          <Pressable
+            style={[styles.pickBtn, cardShadow]}
+            onPress={() => setPicker('date')}>
             <Text style={styles.pickText}>{fmtDate}</Text>
           </Pressable>
           {!hasSchedule && (
-            <Pressable style={[styles.pickBtn, cardShadow]} onPress={() => setPicker('time')}>
+            <Pressable
+              style={[styles.pickBtn, cardShadow]}
+              onPress={() => setPicker('time')}>
               <Text style={styles.pickText}>{fmtTime}</Text>
             </Pressable>
           )}
@@ -179,36 +244,58 @@ export const BookAppointmentScreen: React.FC = () => {
         )}
 
         {/* Doctor-published slots for the chosen day. */}
-        {doctorId && (
-          loadingSlots ? (
-            <ActivityIndicator color={colors.brandRed} style={{ marginTop: verticalScale(12) }} />
+        {doctorId &&
+          (loadingSlots ? (
+            <ActivityIndicator
+              color={colors.brandRed}
+              style={{marginTop: verticalScale(12)}}
+            />
           ) : hasSchedule ? (
             <>
               <Text style={styles.label}>Available Slots</Text>
               {slots.length === 0 ? (
-                <Text style={styles.empty}>No slots on this day. Try another date.</Text>
+                <Text style={styles.empty}>
+                  No slots on this day. Try another date.
+                </Text>
               ) : (
                 <View style={styles.slots}>
-                  {slots.map((s) => (
+                  {slots.map(s => (
                     <Pressable
                       key={s.iso}
                       onPress={() => setSlotIso(s.iso)}
-                      style={[styles.slot, slotIso === s.iso && styles.slotActive]}
-                    >
-                      <Text style={[styles.slotText, slotIso === s.iso && styles.slotTextActive]}>{s.time}</Text>
+                      style={[
+                        styles.slot,
+                        slotIso === s.iso && styles.slotActive,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.slotText,
+                          slotIso === s.iso && styles.slotTextActive,
+                        ]}>
+                        {s.time}
+                      </Text>
                     </Pressable>
                   ))}
                 </View>
               )}
             </>
-          ) : null
-        )}
+          ) : (
+            // No published schedule: the appointment is booked at the date and
+            // time chosen above and confirmed by the hospital. Rendering
+            // nothing here read as "the screen is broken".
+            <Text style={styles.empty}>
+              This doctor has not published fixed slots. Your chosen date and
+              time will be confirmed by the hospital.
+            </Text>
+          ))}
 
         <Text style={styles.label}>Reason (optional)</Text>
         <VoiceTextInput
           value={reason}
           onChangeText={setReason}
-          onTranscript={(text) => setReason((prev) => (prev ? `${prev} ${text}` : text))}
+          onTranscript={text =>
+            setReason(prev => (prev ? `${prev} ${text}` : text))
+          }
           placeholder="e.g. Fever, follow-up, consultation — or tap the mic to speak"
           placeholderTextColor={colors.placeholder}
           multiline
@@ -216,8 +303,16 @@ export const BookAppointmentScreen: React.FC = () => {
           style={styles.textarea}
         />
 
-        <Pressable disabled={saving} onPress={submit} style={({ pressed }) => [styles.cta, (pressed || saving) && styles.pressed]}>
-          <Text style={styles.ctaText}>{saving ? 'Booking…' : 'Confirm Appointment'}</Text>
+        <Pressable
+          disabled={saving}
+          onPress={submit}
+          style={({pressed}) => [
+            styles.cta,
+            (pressed || saving) && styles.pressed,
+          ]}>
+          <Text style={styles.ctaText}>
+            {saving ? 'Booking…' : 'Confirm Appointment'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -225,26 +320,103 @@ export const BookAppointmentScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingTop: verticalScale(6) },
-  label: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.ink, marginTop: verticalScale(18), marginBottom: verticalScale(10) },
-  doc: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: scale(12), padding: scale(14), marginBottom: verticalScale(10), borderWidth: 1, borderColor: 'transparent' },
-  docActive: { borderColor: colors.brandRed },
-  docName: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.ink },
-  docSpec: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(2) },
-  radio: { width: scale(20), height: scale(20), borderRadius: scale(10), borderWidth: 2, borderColor: colors.dashBorder },
-  radioOn: { borderColor: colors.brandRed, backgroundColor: colors.brandRed },
-  row: { flexDirection: 'row', gap: scale(12) },
-  pickBtn: { flex: 1, height: verticalScale(48), borderRadius: scale(12), backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  pickText: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.ink },
-  slots: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(8) },
-  slot: { paddingHorizontal: scale(14), height: verticalScale(38), borderRadius: scale(10), backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.dashBorder, alignItems: 'center', justifyContent: 'center' },
-  slotActive: { backgroundColor: colors.brandRed, borderColor: colors.brandRed },
-  slotText: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.ink },
-  slotTextActive: { color: colors.textWhite },
-  textarea: { minHeight: verticalScale(90), borderRadius: scale(12), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, paddingHorizontal: scale(14), paddingVertical: verticalScale(12), fontFamily: fonts.regular, fontSize: scale(14), color: colors.textBlack },
-  cta: { height: verticalScale(52), borderRadius: scale(12), backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(24) },
-  ctaText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },
-  pressed: { opacity: 0.85 },
-  empty: { fontFamily: fonts.regular, fontSize: scale(14), color: colors.inkMuted, marginTop: verticalScale(8) },
+  root: {flex: 1, backgroundColor: colors.background},
+  content: {paddingHorizontal: spacing.lg, paddingTop: verticalScale(6)},
+  label: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(14),
+    color: colors.ink,
+    marginTop: verticalScale(18),
+    marginBottom: verticalScale(10),
+  },
+  doc: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: scale(12),
+    padding: scale(14),
+    marginBottom: verticalScale(10),
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  docActive: {borderColor: colors.brandRed},
+  docName: {fontFamily: fonts.bold, fontSize: scale(15), color: colors.ink},
+  docSpec: {
+    fontFamily: fonts.medium,
+    fontSize: scale(12),
+    color: colors.inkMuted,
+    marginTop: verticalScale(2),
+  },
+  radio: {
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
+    borderWidth: 2,
+    borderColor: colors.dashBorder,
+  },
+  radioOn: {borderColor: colors.brandRed, backgroundColor: colors.brandRed},
+  row: {flexDirection: 'row', gap: scale(12)},
+  pickBtn: {
+    flex: 1,
+    height: verticalScale(48),
+    borderRadius: scale(12),
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickText: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(13),
+    color: colors.ink,
+  },
+  slots: {flexDirection: 'row', flexWrap: 'wrap', gap: scale(8)},
+  slot: {
+    paddingHorizontal: scale(14),
+    height: verticalScale(38),
+    borderRadius: scale(10),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.dashBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotActive: {backgroundColor: colors.brandRed, borderColor: colors.brandRed},
+  slotText: {
+    fontFamily: fonts.semiBold,
+    fontSize: scale(13),
+    color: colors.ink,
+  },
+  slotTextActive: {color: colors.textWhite},
+  textarea: {
+    minHeight: verticalScale(90),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.surface,
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(12),
+    fontFamily: fonts.regular,
+    fontSize: scale(14),
+    color: colors.textBlack,
+  },
+  cta: {
+    height: verticalScale(52),
+    borderRadius: scale(12),
+    backgroundColor: colors.brandRed,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: verticalScale(24),
+  },
+  ctaText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(16),
+    color: colors.textWhite,
+  },
+  pressed: {opacity: 0.85},
+  empty: {
+    fontFamily: fonts.regular,
+    fontSize: scale(14),
+    color: colors.inkMuted,
+    marginTop: verticalScale(8),
+  },
 });

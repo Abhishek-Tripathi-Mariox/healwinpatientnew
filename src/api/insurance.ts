@@ -31,7 +31,18 @@ export interface InsurancePolicy {
   validFrom?: string | null;
   validTo?: string | null;
   isActive: boolean;
+  documents: PolicyDocument[];
   claims: InsuranceClaimRow[];
+}
+
+export type PolicyDocumentKind = 'policy' | 'card' | 'other';
+
+export interface PolicyDocument {
+  _id: string;
+  kind: PolicyDocumentKind;
+  name: string;
+  url: string;
+  mimeType: string;
 }
 
 export interface AddInsuranceInput {
@@ -43,10 +54,40 @@ export interface AddInsuranceInput {
   validTo?: string;
 }
 
+/** A photo or scan picked from the device, ready for multipart upload. */
+export interface PickedDocument {
+  uri: string;
+  name: string;
+  type: string;
+}
+
 export const insuranceApi = {
   // `patientUserId` optionally views a family member's policies instead of
   // the logged-in user's own — see hms.ts for the same pattern.
   list: (patientUserId?: string) => api.get<InsurancePolicy[]>('/patient/insurance', { patientUserId }),
   payers: () => api.get<InsurancePayerOption[]>('/patient/insurance/payers'),
-  add: (input: AddInsuranceInput) => api.post<{ _id: string }>('/patient/insurance', input),
+  /**
+   * The POLICY DOCUMENT is required — it carries the number, sum insured and
+   * validity that billing verifies against. The CARD is optional: useful at
+   * the desk, but it does not prove the cover.
+   */
+  add: (
+    input: AddInsuranceInput,
+    policyDocuments: PickedDocument[],
+    cards: PickedDocument[] = [],
+  ) => {
+    const form = new FormData();
+    form.append('payerId', input.payerId);
+    form.append('policyNumber', input.policyNumber);
+    if (input.holderName) form.append('holderName', input.holderName);
+    if (input.sumInsured != null) form.append('sumInsured', String(input.sumInsured));
+    if (input.validFrom) form.append('validFrom', input.validFrom);
+    if (input.validTo) form.append('validTo', input.validTo);
+    policyDocuments.forEach((d) => form.append('policyDocument', d as any));
+    cards.forEach((d) => form.append('card', d as any));
+    return api.upload<{ _id: string; documents: number; message?: string }>(
+      '/patient/insurance',
+      form,
+    );
+  },
 };

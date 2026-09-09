@@ -24,6 +24,7 @@ export type RootStackParamList = {
   ExecutiveCall: undefined;
   Tracking: undefined;
   Membership: undefined;
+  FamilyMembers: undefined;
   UploadDocument: undefined;
   Documents: undefined;
   EditProfile: undefined;

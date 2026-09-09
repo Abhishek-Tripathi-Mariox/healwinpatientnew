@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { BackButton, PaymentRow } from '../components';
 import { FilterIcon } from '../components/icons';
 import { svgs } from '../svgAssets';
 import { walletApi } from '../api/misc';
+import { socketService } from '../services/socket';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -50,13 +51,35 @@ export const MyCreditsScreen: React.FC = () => {
   const Wallet = svgs.wallet;
   const Cash = svgs.cash;
 
+  const refresh = useCallback(() => {
+    walletApi.balance().then((d) => setBalance(d?.balance ?? 0)).catch(() => setBalance(0));
+    walletApi.transactions().then((list) => setPayments(list.map(mapTxn))).catch(() => setPayments([]));
+  }, []);
+
   // Refresh on focus so the balance/history update after a top-up.
-  useFocusEffect(
-    useCallback(() => {
-      walletApi.balance().then((d) => setBalance(d?.balance ?? 0)).catch(() => setBalance(0));
-      walletApi.transactions().then((list) => setPayments(list.map(mapTxn))).catch(() => setPayments([]));
-    }, []),
-  );
+  useFocusEffect(refresh);
+
+  /**
+   * Live balance.
+   *
+   * The server emits `wallet:updated` on every balance change — a top-up
+   * confirmed by the gateway's webhook after the app gave up waiting, a refund,
+   * a correction made by staff. Without this the screen would keep showing a
+   * stale figure until it was reopened, and money credited a few seconds after
+   * checkout would look like it had gone missing.
+   */
+  useEffect(() => {
+    void socketService.connect();
+    return socketService.on('wallet:updated', (data: { balance?: number }) => {
+      if (typeof data?.balance === 'number') setBalance(data.balance);
+      // The event carries the balance but not the ledger row, so pull the
+      // history to keep the list beneath it consistent with the number above.
+      walletApi
+        .transactions()
+        .then((list) => setPayments(list.map(mapTxn)))
+        .catch(() => undefined);
+    });
+  }, []);
 
   const pickQuick = (val: number) => {
     setSelected(val);
@@ -69,7 +92,6 @@ export const MyCreditsScreen: React.FC = () => {
       AppAlert.alert('Enter amount', 'Please enter a valid amount to add.');
       return;
     }
-    // Dummy payment for now (no gateway) — the Payment screen credits the wallet.
     navigation.navigate('Payment', { amount: amt, title: 'Wallet top-up', purpose: 'wallet' });
   };
 

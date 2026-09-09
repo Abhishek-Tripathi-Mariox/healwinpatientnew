@@ -6,7 +6,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { CheckCircleIcon, WalletIcon } from '../components/icons';
-import { walletApi } from '../api/misc';
+import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, topUpWallet } from '../services/checkout';
+import { useProfile } from '../state/profileStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -15,10 +17,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Payment'>;
 type Rt = RouteProp<RootStackParamList, 'Payment'>;
 
 /**
- * MOCK payment screen — no real gateway yet. It simulates a successful payment
- * so the flows (wallet top-up, booking/order pay) work end-to-end. For wallet
- * top-ups it actually credits the wallet via /wallet/add; everything else just
- * shows success. Swap the `pay()` body for Razorpay when the gateway is wired.
+ * Payment.
+ *
+ * Wallet top-ups are REAL: the server creates a Razorpay order, the customer
+ * pays in Razorpay's own sheet, and the server credits only what the gateway
+ * confirms it captured. Card details never reach this app.
+ *
+ * Other purposes (booking/order pay) are still settled elsewhere in the flow
+ * and only show confirmation here — that is unchanged.
  */
 export const PaymentScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -28,20 +34,34 @@ export const PaymentScreen: React.FC = () => {
   const title = params.title || 'Payment';
   const purpose = params.purpose || 'generic';
 
+  const profile = useProfile();
   const [stage, setStage] = React.useState<'idle' | 'processing' | 'done'>('idle');
+  // Set when the money was taken but the credit is still being confirmed, so
+  // the success screen can say so instead of claiming it has landed.
+  const [pendingNote, setPendingNote] = React.useState<string | null>(null);
 
   const pay = async () => {
     if (stage !== 'idle') return;
     setStage('processing');
     try {
-      // Simulate gateway processing.
-      await new Promise((r) => setTimeout(r, 1200));
       if (purpose === 'wallet') {
-        await walletApi.addMoney(amount);
+        const res = await topUpWallet(amount, {
+          name: profile.name || undefined,
+          email: profile.email || undefined,
+          contact: profile.phone || undefined,
+        });
+        setPendingNote(res.pending ?? null);
       }
       setStage('done');
-    } catch {
+    } catch (e) {
       setStage('idle');
+      // Backing out of the sheet is a normal thing to do, not an error worth
+      // an alert.
+      if (e instanceof CheckoutCancelled) return;
+      AppAlert.alert(
+        'Payment failed',
+        e instanceof Error ? e.message : 'The payment could not be completed.',
+      );
     }
   };
 
@@ -53,9 +73,15 @@ export const PaymentScreen: React.FC = () => {
         {stage === 'done' ? (
           <View style={styles.center}>
             <CheckCircleIcon size={scale(72)} color="#2E9B2E" />
-            <Text style={styles.successTitle}>Payment successful</Text>
+            <Text style={styles.successTitle}>
+              {pendingNote ? 'Payment received' : 'Payment successful'}
+            </Text>
             <Text style={styles.successSub}>
-              {purpose === 'wallet' ? `₹${amount} added to your wallet.` : `₹${amount} paid for ${title}.`}
+              {pendingNote
+                ? pendingNote
+                : purpose === 'wallet'
+                ? `₹${amount} added to your wallet.`
+                : `₹${amount} paid for ${title}.`}
             </Text>
             <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
               <Text style={styles.ctaText}>Done</Text>
@@ -71,7 +97,11 @@ export const PaymentScreen: React.FC = () => {
               <Text style={styles.amount}>₹{amount}</Text>
             </View>
 
-            <Text style={styles.note}>Demo mode — no real payment is charged.</Text>
+            <Text style={styles.note}>
+              {purpose === 'wallet'
+                ? 'Secured by Razorpay. UPI, cards and net banking accepted.'
+                : 'Payment is collected at the time of service.'}
+            </Text>
 
             <View style={{ flex: 1 }} />
 

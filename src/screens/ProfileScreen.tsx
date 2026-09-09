@@ -79,7 +79,7 @@ const SECTIONS: Section[] = [
         key: 'family',
         label: 'Family Members',
         Icon: FamilyCareIcon,
-        route: 'Membership',
+        route: 'FamilyMembers',
       },
       {
         key: 'addresses',
