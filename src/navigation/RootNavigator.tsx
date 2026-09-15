@@ -9,7 +9,6 @@ import { AmbulanceTypesScreen } from '../screens/AmbulanceTypesScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { NearbyAmbulancesScreen } from '../screens/NearbyAmbulancesScreen';
 import { MyCreditsScreen } from '../screens/MyCreditsScreen';
-import { MyCoinsScreen } from '../screens/MyCoinsScreen';
 import { EmergencyContactsScreen } from '../screens/EmergencyContactsScreen';
 import { ServiceSelectScreen } from '../screens/ServiceSelectScreen';
 import { CentresListScreen } from '../screens/CentresListScreen';
@@ -73,7 +72,6 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="NearbyAmbulances" component={NearbyAmbulancesScreen} />
     <Stack.Screen name="MyCredits" component={MyCreditsScreen} />
-    <Stack.Screen name="MyCoins" component={MyCoinsScreen} />
     <Stack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} />
     <Stack.Screen name="ServiceSelect" component={ServiceSelectScreen} />
     <Stack.Screen name="CentresList" component={CentresListScreen} />

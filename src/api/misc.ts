@@ -1,6 +1,6 @@
 import { api } from './client';
 
-/** Wallet / coins / SOS / support / home — all real backend endpoints. */
+/** Wallet / SOS / support / home — all real backend endpoints. */
 
 export interface ServerPromo {
   _id: string;
@@ -139,17 +139,6 @@ export const walletApi = {
 };
 
 const toTxnList = (d: any) => (Array.isArray(d) ? d : d?.items ?? d?.transactions ?? []);
-
-export const coinsApi = {
-  balance: () => api.get<{ balance: number }>('/coins/balance'),
-  transactions: () => api.get<any>('/coins/transactions').then(toTxnList),
-  // Earned (rewards) vs spent (redemptions) history.
-  rewards: () => api.get<any>('/coins/rewards').then(toTxnList),
-  redemptions: () => api.get<any>('/coins/redemptions').then(toTxnList),
-  // Convert coins → wallet balance (min 100). Returns amountCredited.
-  transferToWallet: (coins: number) =>
-    api.post<{ coinsTransferred: number; amountCredited: number }>('/coins/transfer-to-wallet', { coins }),
-};
 
 export interface SosTriggerInput {
   /**

@@ -98,12 +98,6 @@ const SECTIONS: Section[] = [
         Icon: WalletIcon,
         route: 'MyCredits',
       },
-      {
-        key: 'coins',
-        label: 'My Coins & Rewards',
-        Icon: WalletIcon,
-        route: 'MyCoins',
-      },
     ],
   },
   {

@@ -14,7 +14,6 @@ export type RootStackParamList = {
   Profile: undefined;
   NearbyAmbulances: undefined;
   MyCredits: undefined;
-  MyCoins: undefined;
   EmergencyContacts: undefined;
   ServiceSelect: undefined;
   CentresList: { serviceType?: string } | undefined;
