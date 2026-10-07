@@ -17,6 +17,8 @@ export interface ActiveRide {
   inTransitTotal?: number;
   grandTotal?: number | null; // amount + inTransitTotal — what the patient pays
   paymentStatus?: 'PENDING' | 'PAID';
+  /** Booked but not paid for, so no ambulance is being looked for yet. */
+  awaitingPayment?: boolean;
   // Live tracking
   pickup?: LatLng | null;
   drop?: LatLng | null;
@@ -75,6 +77,7 @@ const fromServer = (b: ServerAmbulanceBooking): ActiveRide => {
     inTransitTotal: b.inTransitTotal ?? 0,
     grandTotal: b.grandTotal ?? b.amount ?? b.fareBreakdown?.finalFare ?? null,
     paymentStatus: b.paymentStatus ?? 'PENDING',
+    awaitingPayment: !!b.awaitingPayment,
     pickup,
     drop,
     ambulance,

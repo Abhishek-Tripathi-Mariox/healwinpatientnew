@@ -32,6 +32,8 @@ export interface ServerBooking {
   cancelReason?: string | null;
   cancelledAt?: string | null;
   cancellationCharge?: number;
+  paymentStatus?: 'PENDING' | 'PAID';
+  awaitingPayment?: boolean;
   assignedAt?: string | null;
   completedAt?: string | null;
   statusHistory?: { status?: string; at?: string; by?: string | null; note?: string | null }[];
@@ -89,6 +91,10 @@ export interface UiBooking {
   cancelledBy?: string | null;
   cancelReason?: string | null;
   cancellationCharge: number;
+  /** PENDING until a real payment lands against this booking. */
+  paymentStatus: 'PENDING' | 'PAID';
+  /** Booked but not paid for yet, so not dispatchable. */
+  awaitingPayment: boolean;
   // Lifecycle timeline.
   timeline: TimelineStep[];
   rating?: number | null;
@@ -129,6 +135,8 @@ export const toUiBooking = (b: ServerBooking): UiBooking => ({
   cancelledBy: b.cancelledBy || undefined,
   cancelReason: b.cancelReason || undefined,
   cancellationCharge: b.cancellationCharge ?? 0,
+  paymentStatus: b.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
+  awaitingPayment: !!(b as any).awaitingPayment,
   timeline: Array.isArray(b.statusHistory)
     ? b.statusHistory.map((h) => ({
         status: (h.status || '').toLowerCase(),

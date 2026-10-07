@@ -1,3 +1,5 @@
+import type {PayPurpose} from '../api/payments';
+
 import type { FamilyMember } from '../state/familyStore';
 import type { SavedContact } from '../state/contactsStore';
 import type { Address } from '../state/addressStore';
@@ -54,7 +56,20 @@ export type RootStackParamList = {
   TicketDetail: { id: string };
   Settings: undefined;
   NotificationSettings: undefined;
-  Payment: { amount: number; title?: string; purpose?: 'wallet' | 'generic' };
+  /**
+   * Pay for something.
+   *
+   * 'wallet' tops the wallet up by `amount`. Anything else names what is being
+   * paid for and the SERVER prices it — `amount` is then only what to show
+   * while the quote loads. There is no 'generic': a purpose with nothing
+   * behind it used to render a success screen without charging anything.
+   */
+  Payment: {
+    amount: number;
+    title?: string;
+    purpose?: 'wallet' | PayPurpose;
+    refId?: string;
+  };
   LabTests: undefined;
   MedicalRecords: undefined;
   // Optional patientUserId/patientName scope a family member's records

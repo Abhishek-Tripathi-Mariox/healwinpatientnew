@@ -11,6 +11,9 @@ import { ChevronDownIcon, MapPinIcon, PersonIcon, PhoneIcon, RebookIcon } from '
 import { rideStore, useActiveRide } from '../state/rideStore';
 import { ambulanceApi } from '../api/ambulance';
 import { socketService } from '../services/socket';
+import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, payFor } from '../services/checkout';
+import { useProfile } from '../state/profileStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -52,6 +55,7 @@ export const TrackingScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
+  const profile = useProfile();
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const ride = useActiveRide();
   const mapRef = useRef<MapView | null>(null);
@@ -194,14 +198,40 @@ export const TrackingScreen: React.FC = () => {
   const paid = ride?.paymentStatus === 'PAID';
   const media = ride?.patientMedia ?? [];
 
+  /**
+   * Pay the bill through the real gateway.
+   *
+   * The server prices the trip and creates the order; the customer pays in
+   * Razorpay's own sheet. This used to POST to an endpoint that simply wrote
+   * "PAID" on the ride — no money moved and no card was ever charged.
+   */
   const onPay = async () => {
     if (!ride?.bookingId || paying || paid) return;
     setPaying(true);
     try {
-      await ambulanceApi.pay(ride.bookingId);
+      const started = await ambulanceApi.pay(ride.bookingId);
+      const res = await payFor({
+        purpose: started.purpose ?? 'ambulance_ride',
+        refId: ride.bookingId,
+        order: started.checkout ?? null,
+        description: 'Ambulance trip',
+        prefill: {
+          name: profile.name || undefined,
+          email: profile.email || undefined,
+          contact: profile.phone || undefined,
+        },
+      });
       await rideStore.loadActive();
-    } catch {
-      // Mock gateway — failures are non-fatal; the crew can still collect cash.
+      if (res.pending) AppAlert.alert('Payment received', res.pending);
+    } catch (e) {
+      // Backing out of the sheet is a normal thing to do.
+      if (e instanceof CheckoutCancelled) return;
+      AppAlert.alert(
+        'Payment failed',
+        e instanceof Error
+          ? e.message
+          : 'The payment could not be completed. You can also pay the crew directly.',
+      );
     } finally {
       setPaying(false);
     }
@@ -217,6 +247,11 @@ export const TrackingScreen: React.FC = () => {
     ride.status !== 'pending' &&
     ride.status !== 'searching';
 
+  // A booking that has not been paid for is NOT being searched for. Saying
+  // "finding the nearest ambulance" there would be the screen lying about
+  // what the system is doing.
+  const unpaidHold = !!ride?.awaitingPayment;
+
   if (!assigned) {
     return (
       <View style={styles.root}>
@@ -225,20 +260,39 @@ export const TrackingScreen: React.FC = () => {
           {/* Header must match the state: only say "Finding an ambulance" while a
               request is actually searching — not on the empty "no active request"
               screen (that contradiction is what looked wrong after a trip). */}
-          <Text style={styles.title}>{ride ? 'Finding an ambulance' : 'Tracking'}</Text>
+          <Text style={styles.title}>
+            {!ride ? 'Tracking' : unpaidHold ? 'Payment pending' : 'Finding an ambulance'}
+          </Text>
         </View>
         <View style={styles.waitWrap}>
           <View style={styles.pulse}>
             <MapPinIcon size={scale(40)} />
           </View>
           <Text style={styles.waitTitle}>
-            {ride ? 'Request sent — finding the nearest ambulance' : 'No active request'}
+            {!ride
+              ? 'No active request'
+              : unpaidHold
+              ? 'Pay to confirm your booking'
+              : 'Request sent — finding the nearest ambulance'}
           </Text>
           <Text style={styles.waitSub}>
-            {ride
-              ? "We'll notify you the moment an ambulance is assigned. Live tracking opens then."
-              : 'Book an ambulance or raise an SOS to start tracking.'}
+            {!ride
+              ? 'Book an ambulance or raise an SOS to start tracking.'
+              : unpaidHold
+              ? 'Your booking is saved. We start looking for an ambulance as soon as the fare is paid. For an emergency, use SOS — that is dispatched immediately and billed afterwards.'
+              : "We'll notify you the moment an ambulance is assigned. Live tracking opens then."}
           </Text>
+          {unpaidHold && (
+            <Pressable
+              style={({ pressed }) => [styles.holdPayBtn, pressed && { opacity: 0.85 }]}
+              disabled={paying}
+              onPress={onPay}
+            >
+              <Text style={styles.holdPayText}>
+                {paying ? 'Opening payment…' : `Pay ₹${money(ride?.amount)} now`}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             style={({ pressed }) => [styles.waitBtn, pressed && { opacity: 0.85 }]}
             onPress={() => rideStore.loadActive().catch(() => undefined)}
@@ -539,6 +593,12 @@ const styles = StyleSheet.create({
     borderRadius: scale(12), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center',
   },
   waitBtnText: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textWhite },
+  holdPayBtn: {
+    marginTop: verticalScale(14), paddingHorizontal: scale(26), height: verticalScale(50),
+    borderRadius: scale(12), backgroundColor: '#2E9B2E', alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  holdPayText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

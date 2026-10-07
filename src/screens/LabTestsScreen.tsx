@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, payFor } from '../services/checkout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -57,16 +58,50 @@ export const LabTestsScreen: React.FC = () => {
   const chosen = tests.filter((t) => selected[t.id]);
   const total = chosen.reduce((n, t) => n + t.price, 0);
 
+  /**
+   * Book and pay.
+   *
+   * The button has always said "Book & Pay"; until now it only booked. The
+   * server creates the booking and prices it in one call, and the checkout it
+   * hands back is opened straight away — so the slot and the payment are one
+   * action, the way the label promised.
+   */
   const bookTests = async () => {
     if (booking || chosen.length === 0 || !picked) return;
     setBooking(true);
+    const slotLabel = picked.label;
     try {
-      await labApi.book({ testIds: chosen.map((t) => t.id), date: picked.date, slot: picked.time });
+      const created = await labApi.book({
+        testIds: chosen.map((t) => t.id),
+        date: picked.date,
+        slot: picked.time,
+      });
       setPickerOpen(false);
       setPicked(null);
       setSelected({});
-      AppAlert.alert('Booking confirmed', `Home sample collection scheduled for ${picked.label}.`);
+
+      const res = await payFor({
+        purpose: 'lab_booking',
+        refId: created._id,
+        order: created.checkout ?? null,
+        description: 'Lab tests',
+      });
+      AppAlert.alert(
+        'Booking confirmed',
+        res.pending
+          ? `${res.pending} Home sample collection is scheduled for ${slotLabel}.`
+          : `Paid. Home sample collection scheduled for ${slotLabel}.`,
+      );
     } catch (e: any) {
+      if (e instanceof CheckoutCancelled) {
+        // The booking exists and is unpaid — say where to finish it rather
+        // than leaving the customer thinking nothing happened.
+        AppAlert.alert(
+          'Booking saved — payment pending',
+          'Your slot is held. Complete the payment from Lab Tests in your bookings to confirm it.',
+        );
+        return;
+      }
       AppAlert.alert('Could not book', e?.message || 'Please try again.');
     } finally {
       setBooking(false);

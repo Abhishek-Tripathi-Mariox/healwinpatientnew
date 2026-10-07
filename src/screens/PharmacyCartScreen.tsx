@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, payFor } from '../services/checkout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -50,20 +51,45 @@ export const PharmacyCartScreen: React.FC = () => {
     }
   };
 
+  /**
+   * Place the order and pay for it.
+   *
+   * Stock is drawn the moment the order is created (FEFO, server-side), so an
+   * order that is never paid for is real inventory sitting aside. Payment is
+   * therefore part of placing it, not something to chase afterwards — and an
+   * abandoned checkout says so plainly instead of claiming success.
+   */
   const placeOrder = async () => {
     if (placing || items.length === 0) return;
     setPlacing(true);
     try {
-      await pharmacyApi.createOrder({
+      const order = await pharmacyApi.createOrder({
         items: items.map((i) => ({ productId: i.product.id, qty: i.quantity })),
         addressId: selected?.id,
         ...(prescriptionUrl ? { prescriptionUrl } : {}),
       });
       cartStore.clear?.();
-      AppAlert.alert('Order placed', 'Your pharmacy order has been placed successfully.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+
+      const res = await payFor({
+        purpose: 'pharmacy_order',
+        refId: order._id,
+        order: order.checkout ?? null,
+        description: 'Pharmacy order',
+      });
+      AppAlert.alert(
+        'Order confirmed',
+        res.pending || 'Payment received. Your pharmacy order is confirmed.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
     } catch (e: any) {
+      if (e instanceof CheckoutCancelled) {
+        AppAlert.alert(
+          'Order saved — payment pending',
+          'Your items are reserved. Pay from My Orders to confirm the order.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+        );
+        return;
+      }
       AppAlert.alert('Order failed', e?.message || 'Please try again.');
     } finally {
       setPlacing(false);

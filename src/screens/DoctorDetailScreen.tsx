@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, payFor } from '../services/checkout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -58,14 +59,52 @@ export const DoctorDetailScreen: React.FC = () => {
     };
   }, [params.id]);
 
+  /**
+   * Book the slot and pay the consultation fee.
+   *
+   * The fee was always captured on the consultation and never charged. The
+   * slot is held either way — an abandoned payment leaves a requested, unpaid
+   * appointment rather than losing the time.
+   */
   const bookConsult = async () => {
     if (booking || !picked) return;
     setBooking(true);
+    const when = picked.label;
     try {
-      await doctorsApi.book({ doctorId: params.id, date: picked.date, slot: picked.time, teleconsult: true });
-      AppAlert.alert('Appointment booked', `Your consultation is scheduled for ${picked.label}.`);
+      const created = await doctorsApi.book({
+        doctorId: params.id,
+        date: picked.date,
+        slot: picked.time,
+        teleconsult: true,
+      });
+
+      const fee = Number(created?.fee) || 0;
+      if (fee <= 0) {
+        AppAlert.alert('Appointment booked', `Your consultation is scheduled for ${when}.`);
+        navigation.goBack();
+        return;
+      }
+
+      const res = await payFor({
+        purpose: 'consultation',
+        refId: created._id,
+        order: created.checkout ?? null,
+        description: 'Doctor consultation',
+      });
+      AppAlert.alert(
+        'Appointment confirmed',
+        res.pending || `Paid. Your consultation is scheduled for ${when}.`,
+      );
       navigation.goBack();
     } catch (e: any) {
+      if (e instanceof CheckoutCancelled) {
+        AppAlert.alert(
+          'Slot held — payment pending',
+          `Your ${when} slot is held. Pay from My Appointments to confirm it.`,
+        );
+        navigation.goBack();
+        return;
+      }
       AppAlert.alert('Could not book', e?.message || 'Please try again.');
     } finally {
       setBooking(false);

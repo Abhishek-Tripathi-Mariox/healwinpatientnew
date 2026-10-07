@@ -4,6 +4,12 @@ import RazorpayCheckout, {
 } from 'react-native-razorpay';
 
 import {walletApi, type TopUpOrder} from '../api/misc';
+import {
+  paymentsApi,
+  type CheckoutOrder,
+  type PayPurpose,
+  type SettleResult,
+} from '../api/payments';
 
 /**
  * Real Razorpay checkout.
@@ -39,7 +45,7 @@ export const isCheckoutAvailable = (): boolean =>
   !!RazorpayCheckout && typeof RazorpayCheckout.open === 'function';
 
 interface OpenArgs {
-  order: TopUpOrder;
+  order: TopUpOrder | CheckoutOrder;
   description: string;
   prefill?: {name?: string; email?: string; contact?: string};
 }
@@ -119,4 +125,83 @@ export const topUpWallet = async (
     };
   }
   return {balance: res.balance, amount: res.amount};
+};
+
+export interface PayOutcome {
+  paid: boolean;
+  amount?: number;
+  /**
+   * Set when the money went through but the server has not applied it yet —
+   * the gateway's webhook will. Distinct from a failure: the customer HAS
+   * paid, so nothing on screen may say otherwise.
+   */
+  pending?: string;
+}
+
+/**
+ * Pay for something.
+ *
+ * `order` is the checkout the SERVER already created — most create endpoints
+ * hand one back with the thing they created, so the customer is never shown a
+ * price the server did not set. Pass only `purpose` + `refId` to raise a fresh
+ * one (paying later, retrying an abandoned checkout).
+ *
+ * Throws CheckoutCancelled if the customer backs out, which is a normal thing
+ * to do and not an error worth an alert.
+ */
+export const payFor = async (args: {
+  purpose: PayPurpose;
+  refId: string;
+  order?: CheckoutOrder | null;
+  description?: string;
+  prefill?: OpenArgs['prefill'];
+}): Promise<PayOutcome> => {
+  if (!isCheckoutAvailable()) {
+    throw new Error(
+      'Payments need the latest version of the app. Please update from the store and try again.',
+    );
+  }
+
+  const order =
+    args.order ?? (await paymentsApi.start(args.purpose, args.refId));
+  const paid = await openSheet({
+    order,
+    description: args.description || order.description || 'HealWin',
+    prefill: args.prefill,
+  });
+
+  let res: SettleResult;
+  try {
+    res = await paymentsApi.confirm({
+      orderId: paid.razorpay_order_id,
+      paymentId: paid.razorpay_payment_id,
+      signature: paid.razorpay_signature,
+    });
+  } catch (e) {
+    // The sheet succeeded, so the money is gone from the customer's account.
+    // A failed confirm call is OUR problem, not theirs — the webhook settles
+    // the same payment server-side regardless.
+    return {
+      paid: true,
+      pending:
+        'Your payment went through. We are confirming it and will update this shortly.',
+    };
+  }
+
+  if (!res.paid) {
+    return {
+      paid: true,
+      pending: res.pending || res.reason || 'Confirming your payment…',
+    };
+  }
+  return {paid: true, amount: res.amount};
+};
+
+/** Pay from the HealWin wallet — no gateway sheet, no card. */
+export const payFromWallet = async (
+  purpose: PayPurpose,
+  refId: string,
+): Promise<PayOutcome> => {
+  const res = await paymentsApi.payFromWallet(purpose, refId);
+  return {paid: !!res.paid, amount: res.amount};
 };

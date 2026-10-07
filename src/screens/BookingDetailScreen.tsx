@@ -140,6 +140,7 @@ export const BookingDetailScreen: React.FC = () => {
   const displayAmount = finalFareAmount ?? booking.amount;
   const media = booking.patientMedia;
   const payable = cancelled ? booking.cancellationCharge : displayAmount;
+  const paid = booking.paymentStatus === 'PAID';
 
   // Patient can cancel an in-progress booking (not completed/cancelled).
   const canCancel = !cancelled && booking.rawStatus !== 'completed';
@@ -304,11 +305,17 @@ export const BookingDetailScreen: React.FC = () => {
           </View>
         )}
 
-        {payable > 0 && (
+        {payable > 0 && !paid && (
           <Pressable
             onPress={() =>
+              // The amount here is only what to show on the way in — the
+              // Payment screen re-quotes it from the server before charging
+              // anything, so an estimate that has since changed cannot be
+              // billed.
               navigation.navigate('Payment', {
                 amount: payable,
+                refId: booking.id,
+                purpose: cancelled ? 'ambulance_cancellation' : 'ambulance_ride',
                 title: cancelled ? 'Cancellation charge' : `${booking.type} booking`,
               })
             }

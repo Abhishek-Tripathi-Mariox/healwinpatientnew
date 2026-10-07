@@ -12,6 +12,7 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {AppAlert} from '../services/appAlert';
+import {CheckoutCancelled, payFor} from '../services/checkout';
 import {BackButton, PlanCard} from '../components';
 import {familyStore} from '../state/familyStore';
 import {
@@ -70,17 +71,58 @@ export const MembershipScreen: React.FC = () => {
     }, [load]),
   );
 
+  /**
+   * Enrol and pay.
+   *
+   * Enrolment creates the membership row first — we need its id to raise a
+   * gateway order against it — and the benefits are gated on payment, not on
+   * the row existing. So an abandoned checkout leaves a membership that grants
+   * nothing, and the customer is told that rather than congratulated.
+   */
   const confirmJoin = async (plan: ServerMembershipPlan) => {
     setJoining(plan._id);
     try {
       const res = await membershipApi.enroll(plan._id);
+
+      if (!res?.checkout && (plan.price ?? 0) > 0) {
+        await load();
+        AppAlert.alert(
+          'Payment pending',
+          'Your membership is reserved but not active yet. Please try the payment again in a moment.',
+        );
+        return;
+      }
+
+      if (res?.checkout) {
+        const paid = await payFor({
+          purpose: 'membership',
+          refId: res._id,
+          order: res.checkout,
+          description: `${plan.name} membership`,
+        });
+        await load();
+        AppAlert.alert(
+          'Membership active',
+          paid.pending ||
+            `${plan.name} is active until ${fmtDate(res?.validUpto)}.`,
+        );
+        return;
+      }
+
       await load();
       AppAlert.alert(
         'Membership active',
-        res?.message ||
-          `${plan.name} is active until ${fmtDate(res?.validUpto)}.`,
+        res?.message || `${plan.name} is active until ${fmtDate(res?.validUpto)}.`,
       );
     } catch (e: any) {
+      await load();
+      if (e instanceof CheckoutCancelled) {
+        AppAlert.alert(
+          'Payment not completed',
+          `${plan.name} is reserved but its benefits start once the payment is made. You can pay from this screen any time.`,
+        );
+        return;
+      }
       AppAlert.alert(
         'Could not join',
         e?.message || 'Something went wrong. Please try again.',
@@ -100,7 +142,7 @@ export const MembershipScreen: React.FC = () => {
       // Renewing extends rather than restarting, so say so — otherwise
       // switching plans looks like it throws away time already paid for.
       upgrading ? 'Your remaining days carry over to the new plan.' : '',
-      'Payment is collected separately by our team.',
+      'You will be taken to a secure payment screen next.',
     ].filter(Boolean);
 
     AppAlert.alert(

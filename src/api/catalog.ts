@@ -1,4 +1,19 @@
 import { api } from './client';
+import type { CheckoutOrder } from './payments';
+
+/**
+ * What a create endpoint hands back: the thing it created, plus a checkout
+ * the SERVER already priced. Raised at creation time so the customer is
+ * never shown a price this app made up. Null when the gateway is down —
+ * the order still stands and can be paid from its detail screen.
+ */
+export interface CreatedWithCheckout {
+  _id: string;
+  totalAmount?: number;
+  fee?: number;
+  checkout?: CheckoutOrder | null;
+  [k: string]: any;
+}
 
 /**
  * Catalog + commerce domains — all real backend endpoints now. Doctors come
@@ -18,7 +33,7 @@ export const doctorsApi = {
   slots: (id: string, date: string) =>
     api.get<any[]>(`/patient/doctors/${id}/slots`, { date }).then(arr),
   book: (data: { doctorId: string; date?: string; slot?: string; familyMemberId?: string; symptoms?: string; teleconsult?: boolean }) =>
-    api.post('/patient/consultations', data),
+    api.post<CreatedWithCheckout>('/patient/consultations', data),
   // History + cancel + reschedule for booked consultations.
   consultations: () => api.get<any[]>('/patient/consultations').then(arr),
   cancelConsultation: (id: string) => api.post(`/patient/consultations/${id}/cancel`, {}),
@@ -31,7 +46,7 @@ export const pharmacyApi = {
   products: (q?: string, category?: string) =>
     api.get<any[]>('/patient/pharmacy/products', { q, category }, false).then(arr),
   createOrder: (data: { items: { productId: string; qty: number }[]; addressId?: string; prescriptionUrl?: string }) =>
-    api.post('/patient/pharmacy/orders', data),
+    api.post<CreatedWithCheckout>('/patient/pharmacy/orders', data),
   orders: () => api.get<any[]>('/patient/pharmacy/orders').then(arr),
   cancelOrder: (id: string) => api.post(`/patient/pharmacy/orders/${id}/cancel`, {}),
   // Upload a prescription file → returns { url } to pass as prescriptionUrl.
@@ -43,7 +58,7 @@ export const labApi = {
     api.get<any[]>('/patient/lab/tests', { q, category }, false).then(arr),
   slots: (date: string) => api.get<any[]>('/patient/lab/slots', { date }).then(arr),
   book: (data: { testIds: string[]; addressId?: string; date?: string; slot?: string; familyMemberId?: string }) =>
-    api.post('/patient/lab/bookings', data),
+    api.post<CreatedWithCheckout>('/patient/lab/bookings', data),
   // History + cancel + reschedule for booked lab tests.
   bookings: () => api.get<any[]>('/patient/lab/bookings').then(arr),
   cancelBooking: (id: string) => api.post(`/patient/lab/bookings/${id}/cancel`, {}),

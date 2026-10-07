@@ -1,3 +1,4 @@
+import type {CheckoutOrder, PayPurpose} from './payments';
 import { api } from './client';
 
 /**
@@ -103,6 +104,8 @@ export interface ServerAmbulanceBooking {
   inTransitTotal?: number;
   grandTotal?: number | null; // ambulance amount + inTransitTotal — final payable
   paymentStatus?: "PENDING" | "PAID";
+  /** Booked but not paid for yet — not dispatchable until it is. */
+  awaitingPayment?: boolean;
   // Actual distance driven for this trip (dispatch point → pickup →
   // hospital), tracked live from crew location pings — distinct from the
   // booking-time estimate in `distanceKm`.
@@ -137,8 +140,15 @@ export const ambulanceApi = {
     );
     return Array.isArray(data) ? data : data?.items ?? [];
   },
+  /**
+   * Create a booking.
+   *
+   * A normal booking is prepaid: it comes back `awaitingPayment` with a
+   * `checkout` to open, and is not dispatched until the money lands. SOS is
+   * never held — the ambulance goes, and the bill follows the trip.
+   */
   book: (input: BookAmbulanceInput) =>
-    api.post<ServerAmbulanceBooking>(
+    api.post<ServerAmbulanceBooking & { checkout?: CheckoutOrder | null }>(
       input.emergency ? '/patient/ambulance/emergency' : '/patient/ambulance/book',
       input,
     ),
@@ -165,7 +175,20 @@ export const ambulanceApi = {
   detail: (id: string) => api.get<ServerAmbulanceBooking>(`/patient/ambulance/${id}`),
   cancel: (id: string, reason?: string) =>
     api.post(`/patient/ambulance/${id}/cancel`, { reason }),
-  /** Pay the ambulance bill (fare + in-transit expenses). Mock gateway for now. */
-  pay: (id: string, method = 'ONLINE') =>
-    api.post<ServerAmbulanceBooking>(`/patient/ambulance/${id}/pay`, { method }),
+  /**
+   * Start paying the ambulance bill — fare plus in-transit expenses, or the
+   * cancellation charge on a cancelled booking.
+   *
+   * The server prices it and hands back what the Razorpay sheet needs; pass
+   * `method: 'wallet'` to settle from the HealWin wallet instead, in which
+   * case there is no sheet and `paid` comes back true.
+   */
+  pay: (id: string, method?: 'wallet') =>
+    api.post<
+      ServerAmbulanceBooking & {
+        checkout?: CheckoutOrder | null;
+        purpose?: PayPurpose;
+        paid?: boolean;
+      }
+    >(`/patient/ambulance/${id}/pay`, method ? { method } : {}),
 };

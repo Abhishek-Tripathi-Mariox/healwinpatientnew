@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppAlert } from '../services/appAlert';
+import { CheckoutCancelled, payFor } from '../services/checkout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -182,7 +183,7 @@ export const SelectAmbulanceScreen: React.FC = () => {
       // "Book for someone else": if a saved contact was chosen on the Plan
       // screen, send it so the crew/admin know who they're picking up.
       const recipient = contactsStore.getRecipient();
-      await rideStore.book({
+      const created = await rideStore.book({
         type: typeCode,
         pickup: {
           lat: draft?.lat ?? loc?.lat ?? 0,
@@ -211,6 +212,34 @@ export const SelectAmbulanceScreen: React.FC = () => {
       contactsStore.clearRecipient();
       bookingDraftStore.clearPickup();
       bookingDraftStore.clearDrop();
+
+      // A normal booking is prepaid — no ambulance is looked for until the
+      // fare is paid. Pay right here so the customer is not left on a
+      // "finding an ambulance" screen that is not actually searching.
+      if (created?.awaitingPayment) {
+        try {
+          await payFor({
+            purpose: 'ambulance_booking',
+            refId: created._id,
+            order: created.checkout ?? null,
+            description: `${typeCode} booking`,
+          });
+          await rideStore.loadActive();
+        } catch (payErr) {
+          // The booking exists and is held. Tracking shows the pending state
+          // with its own Pay button, so send them there either way rather
+          // than throwing the booking away.
+          if (!(payErr instanceof CheckoutCancelled)) {
+            AppAlert.alert(
+              'Payment not completed',
+              payErr instanceof Error
+                ? payErr.message
+                : 'Your booking is saved. Pay from the tracking screen to dispatch an ambulance.',
+            );
+          }
+        }
+      }
+
       navigation.navigate('Tracking');
     } catch (e: any) {
       AppAlert.alert('Booking failed', e?.message || 'Please try again.');

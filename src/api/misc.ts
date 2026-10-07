@@ -1,3 +1,4 @@
+import type {CheckoutOrder} from './payments';
 import { api } from './client';
 
 /** Wallet / SOS / support / home — all real backend endpoints. */
@@ -101,6 +102,8 @@ export const membershipApi = {
       concessionPercent?: number;
       extendedFromExisting?: boolean;
       message?: string;
+      /** Ready-to-open checkout; benefits start once it is paid. */
+      checkout?: CheckoutOrder | null;
     }>('/patient/membership/enroll', { planId }),
 };
 
