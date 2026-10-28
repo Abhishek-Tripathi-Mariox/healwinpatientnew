@@ -106,6 +106,8 @@ export interface ServerAmbulanceBooking {
   paymentStatus?: "PENDING" | "PAID";
   /** Booked but not paid for yet — not dispatchable until it is. */
   awaitingPayment?: boolean;
+  /** "sos" for an emergency dispatch; absent for a booked ride. */
+  kind?: "sos";
   // Actual distance driven for this trip (dispatch point → pickup →
   // hospital), tracked live from crew location pings — distinct from the
   // booking-time estimate in `distanceKm`.

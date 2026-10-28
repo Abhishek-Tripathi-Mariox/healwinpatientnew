@@ -10,6 +10,7 @@ import { BackButton } from '../components';
 import { ChevronDownIcon, MapPinIcon, PersonIcon, PhoneIcon, RebookIcon } from '../components/icons';
 import { rideStore, useActiveRide } from '../state/rideStore';
 import { ambulanceApi } from '../api/ambulance';
+import { sosApi } from '../api/misc';
 import { socketService } from '../services/socket';
 import { AppAlert } from '../services/appAlert';
 import { CheckoutCancelled, payFor } from '../services/checkout';
@@ -56,6 +57,7 @@ export const TrackingScreen: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
   const [paying, setPaying] = useState(false);
   const profile = useProfile();
+  const [cancelling, setCancelling] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const ride = useActiveRide();
   const mapRef = useRef<MapView | null>(null);
@@ -237,6 +239,54 @@ export const TrackingScreen: React.FC = () => {
     }
   };
 
+  /**
+   * Stand down an SOS.
+   *
+   * The patient could raise an emergency but never call it off: there was no
+   * cancel anywhere on this screen, and the one patient endpoint that existed
+   * hit a legacy record the dispatch had already moved past — so an ambulance
+   * kept driving to someone who no longer needed it.
+   *
+   * Allowed until the crew is on scene. Once the trip is under way the server
+   * refuses and tells them to ring the control room, which is right: by then
+   * they are in the vehicle.
+   */
+  const canCancelSos =
+    !!ride?.isSos && ride.status !== 'on_trip' && ride.status !== 'completed';
+
+  const onCancelSos = () => {
+    if (!ride?.bookingId || cancelling) return;
+    AppAlert.alert(
+      'Cancel this emergency?',
+      'The ambulance will be stood down and sent elsewhere. Only do this if you no longer need help.',
+      [
+        { text: 'Keep it coming', style: 'cancel' },
+        {
+          text: 'Cancel SOS',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await sosApi.cancel(ride.bookingId!);
+              rideStore.clear();
+              await rideStore.loadActive();
+              navigation.goBack();
+            } catch (e) {
+              AppAlert.alert(
+                'Could not cancel',
+                e instanceof Error
+                  ? e.message
+                  : 'Please call the control room to cancel.',
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // A real ambulance is only "assigned" once a driver + vehicle are attached.
   // Until then we must NOT show the (dummy-looking) tracking map/driver card —
   // instead show a "finding an ambulance" waiting state.
@@ -299,6 +349,17 @@ export const TrackingScreen: React.FC = () => {
           >
             <Text style={styles.waitBtnText}>Refresh</Text>
           </Pressable>
+          {canCancelSos && (
+            <Pressable
+              disabled={cancelling}
+              style={({ pressed }) => [styles.cancelSos, pressed && { opacity: 0.85 }]}
+              onPress={onCancelSos}
+            >
+              <Text style={styles.cancelSosText}>
+                {cancelling ? 'Cancelling…' : "Cancel — I don't need an ambulance"}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
     );
@@ -532,6 +593,21 @@ export const TrackingScreen: React.FC = () => {
             </Pressable>
           )}
 
+          {/* An ambulance is on its way but is no longer needed — a false
+              alarm, or the patient got to hospital another way. Disappears
+              once the trip starts: by then they are in the vehicle. */}
+          {canCancelSos && (
+            <Pressable
+              disabled={cancelling}
+              style={({ pressed }) => [styles.cancelSos, pressed && { opacity: 0.85 }]}
+              onPress={onCancelSos}
+            >
+              <Text style={styles.cancelSosText}>
+                {cancelling ? 'Cancelling…' : "Cancel — I don't need an ambulance"}
+              </Text>
+            </Pressable>
+          )}
+
           {/* Trip finished — clear the ride and take the customer back to Home
               (reset the stack so they can't navigate back into the ended trip). */}
           {isCompleted && (
@@ -599,6 +675,12 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   holdPayText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },
+  cancelSos: {
+    marginTop: verticalScale(10), paddingHorizontal: scale(20), height: verticalScale(44),
+    borderRadius: scale(12), borderWidth: 1, borderColor: '#C92A2A',
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch',
+  },
+  cancelSosText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: '#C92A2A' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

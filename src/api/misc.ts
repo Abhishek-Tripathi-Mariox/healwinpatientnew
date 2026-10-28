@@ -181,6 +181,14 @@ export const sosApi = {
   addContact: (c: EmergencyContactInput) => api.post('/sos/contacts', c),
   updateContact: (id: string, c: EmergencyContactInput) => api.put(`/sos/contacts/${id}`, c),
   removeContact: (id: string) => api.del(`/sos/contacts/${id}`),
+  /**
+   * Stand down an SOS. Works whether or not an ambulance has been assigned —
+   * pass the dispatch id when there is one, otherwise the submission id (the
+   * tracking screen holds whichever exists). Refused once the trip has
+   * started, because the patient is in the vehicle by then.
+   */
+  cancel: (id: string, reason?: string) =>
+    api.post<{cancelled: boolean}>(`/patient/sos/${id}/cancel`, {reason}),
   history: () => api.get<any[]>('/sos/history'),
 };
 

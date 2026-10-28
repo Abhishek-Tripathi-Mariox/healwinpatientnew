@@ -19,6 +19,8 @@ export interface ActiveRide {
   paymentStatus?: 'PENDING' | 'PAID';
   /** Booked but not paid for, so no ambulance is being looked for yet. */
   awaitingPayment?: boolean;
+  /** True for an SOS — it cancels through a different endpoint. */
+  isSos?: boolean;
   // Live tracking
   pickup?: LatLng | null;
   drop?: LatLng | null;
@@ -78,6 +80,7 @@ const fromServer = (b: ServerAmbulanceBooking): ActiveRide => {
     grandTotal: b.grandTotal ?? b.amount ?? b.fareBreakdown?.finalFare ?? null,
     paymentStatus: b.paymentStatus ?? 'PENDING',
     awaitingPayment: !!b.awaitingPayment,
+    isSos: b.kind === 'sos',
     pickup,
     drop,
     ambulance,
