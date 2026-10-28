@@ -135,6 +135,19 @@ export interface HmsAdmission {
   admittedAt: string;
   dischargedAt?: string | null;
   dischargeSummary?: string;
+  /**
+   * The bill raised for this stay, once one exists. A 'draft' has not been
+   * finalised at the counter — its total can still move, so it is shown but
+   * cannot be paid.
+   */
+  bill?: {
+    _id: string;
+    invoiceNo: string;
+    total: number;
+    amountPaid: number;
+    balanceDue: number;
+    status: string;
+  } | null;
 }
 
 export interface HmsSlotsResponse {

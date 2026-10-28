@@ -530,6 +530,49 @@ export const HospitalRecordsScreen: React.FC = () => {
                       </Text>
                     )}
 
+                    {/* Settle it from here. A hospital bill is left open at
+                        discharge more often than not — on insurance, on
+                        credit, or just because the counter had closed — and
+                        until now the only way to clear one was to go back to
+                        the hospital. The amount shown is what to expect: the
+                        Payment screen re-quotes from the server before it
+                        charges anything, so a balance that moved in the
+                        meantime cannot be billed at the stale figure.
+
+                        Not offered for a family member's bill — the quote is
+                        scoped to the signed-in user's own family group, and
+                        the "viewing as" screen has no way to say who pays. */}
+                    {inv.balanceDue > 0 &&
+                      !patientUserId &&
+                      (inv.status === 'draft' ? (
+                        // The bill raised automatically at discharge starts as
+                        // a draft until the counter finalises it, and its
+                        // total can still move. The server refuses to quote
+                        // one, so offering a button here would only lead to a
+                        // refusal — say why instead.
+                        <Text style={styles.notFinal}>
+                          This bill is not finalised yet — the hospital will
+                          confirm it before it can be paid.
+                        </Text>
+                      ) : (
+                        <Pressable
+                          onPress={() =>
+                            navigation.navigate('Payment', {
+                              amount: inv.balanceDue,
+                              refId: inv._id,
+                              purpose: 'hospital_invoice',
+                              title: inv.invoiceNo
+                                ? `Hospital bill ${inv.invoiceNo}`
+                                : 'Hospital bill',
+                            })
+                          }
+                          style={styles.payRow}>
+                          <Text style={styles.payText}>
+                            Pay ₹{inv.balanceDue.toLocaleString('en-IN')} now
+                          </Text>
+                        </Pressable>
+                      ))}
+
                     {inv.claim ? (
                       <Pressable
                         style={styles.insuranceRow}
@@ -593,6 +636,42 @@ export const HospitalRecordsScreen: React.FC = () => {
                     <Text style={styles.summaryLabel}>Discharge Summary</Text>
                     <Text style={styles.body}>{a.dischargeSummary}</Text>
                   </View>
+                )}
+
+                {/* Settle the stay from the stay itself. Someone reading
+                    their discharge summary and seeing money still owed
+                    should not have to go and find the matching invoice on
+                    another tab — that is the moment they want to pay. */}
+                {!!a.bill && a.bill.balanceDue > 0 && (
+                  <>
+                    <Text style={styles.due}>
+                      Balance due: ₹{a.bill.balanceDue.toLocaleString('en-IN')}
+                      {a.bill.invoiceNo ? ` · ${a.bill.invoiceNo}` : ''}
+                    </Text>
+                    {patientUserId ? null : a.bill.status === 'draft' ? (
+                      <Text style={styles.notFinal}>
+                        This bill is not finalised yet — the hospital will
+                        confirm it before it can be paid.
+                      </Text>
+                    ) : (
+                      <Pressable
+                        onPress={() =>
+                          navigation.navigate('Payment', {
+                            amount: a.bill!.balanceDue,
+                            refId: a.bill!._id,
+                            purpose: 'hospital_invoice',
+                            title: a.bill!.invoiceNo
+                              ? `Hospital bill ${a.bill!.invoiceNo}`
+                              : 'Hospital bill',
+                          })
+                        }
+                        style={styles.payRow}>
+                        <Text style={styles.payText}>
+                          Pay ₹{a.bill.balanceDue.toLocaleString('en-IN')} now
+                        </Text>
+                      </Pressable>
+                    )}
+                  </>
                 )}
               </View>
             ))
@@ -728,6 +807,24 @@ const styles = StyleSheet.create({
     fontSize: scale(13),
     color: colors.brandRed,
     marginTop: verticalScale(6),
+  },
+  payRow: {
+    marginTop: verticalScale(10),
+    paddingVertical: verticalScale(10),
+    borderRadius: scale(10),
+    backgroundColor: colors.brandRed,
+    alignItems: 'center',
+  },
+  payText: {
+    fontFamily: fonts.bold,
+    fontSize: scale(13),
+    color: '#fff',
+  },
+  notFinal: {
+    fontFamily: fonts.regular,
+    fontSize: scale(12),
+    color: colors.inkMuted,
+    marginTop: verticalScale(8),
   },
   // Billing summary + itemised bill rows
   sumRow: {

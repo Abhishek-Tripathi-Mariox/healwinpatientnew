@@ -19,6 +19,8 @@ export type PayPurpose =
   | 'consultation'
   | 'lab_booking'
   | 'pharmacy_order'
+  /** A hospital bill — usually the balance left over after a discharge. */
+  | 'hospital_invoice'
   | 'membership';
 
 /** Everything the Razorpay sheet needs, as the SERVER created it. */
